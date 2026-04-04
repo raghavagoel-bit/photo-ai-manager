@@ -1,0 +1,10 @@
+data/
+__pycache__/
+tools/__pycache__/
+*.db
+*.sqlite
+*.h5
+*.onnx
+*.pb
+.env
+.venv/

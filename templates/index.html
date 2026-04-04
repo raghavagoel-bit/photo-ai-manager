@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Recognition AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar glass-panel">
+            <div class="logo">
+                <h2>Photo AI</h2>
+            </div>
+            <ul class="nav-links">
+                <li><button class="nav-btn active" data-target="scan-sec">Scanner</button></li>
+                <li><button class="nav-btn" data-target="tag-sec">Tag Faces</button></li>
+                <li><button class="nav-btn" data-target="search-sec">Search</button></li>
+            </ul>
+            <div id="ai-health-status" class="health-status">
+                Checking AI Engine...
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content-area">
+            
+            <!-- Scanner Section -->
+            <section id="scan-sec" class="page-section active glass-panel">
+                <h1>Library Scanner</h1>
+                <p>Enter the path to a folder on your drive to begin indexing photos.</p>
+                
+                <div class="input-group">
+                    <input type="text" id="scan-path" placeholder="e.g. D:\MyPhotos\Vietnam">
+                    <button id="start-scan-btn" class="primary-btn">Start Scanning</button>
+                </div>
+                
+                <div class="status-box">
+                    <h3>Scanner Status</h3>
+                    <div id="status-indicator" class="idle">Idle</div>
+                    <p>Photos Scanned: <span id="scanned-count">0</span></p>
+                    <p>Faces Found: <span id="face-count">0</span></p>
+                </div>
+            </section>
+
+            <!-- Tagging Section -->
+            <section id="tag-sec" class="page-section glass-panel">
+                <h1>Tag Unknown Faces</h1>
+                <p>Help the AI by putting names to these faces.</p>
+                <div class="action-bar">
+                    <button id="refresh-faces-btn" class="secondary-btn">Refresh</button>
+                </div>
+                <div id="faces-grid" class="image-grid">
+                    <!-- Faces loaded dynamically -->
+                </div>
+            </section>
+
+            <!-- Search Section -->
+            <section id="search-sec" class="page-section glass-panel">
+                <h1>Search Library</h1>
+                <p>Search by person name or location tag.</p>
+                <div class="input-group">
+                    <input type="text" id="search-input" placeholder="Search... e.g., 'Alice' or 'Goa'">
+                    <button id="search-btn" class="primary-btn">Search</button>
+                </div>
+                <div id="search-results" class="gallery-grid">
+                    <!-- Results loaded dynamically -->
+                </div>
+            </section>
+
+        </main>
+    </div>
+    
+    <!-- Modal for viewing full photo -->
+    <div id="photo-modal" class="modal">
+        <span class="close-modal">&times;</span>
+        <img class="modal-content" id="full-resolution-img">
+        <div id="caption"></div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
