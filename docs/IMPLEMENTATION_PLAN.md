@@ -308,6 +308,22 @@ In `script.js`, the `addEventListener('click', performSearch)` triggered a "Mous
 
 ---
 
+## Bug Fix Session 6: Stale Server & Data Mismatch (✅ Fixed)
+
+### Problem
+Despite Phase 8 code being correct, the UI showed "No results found" for valid searches (e.g., "kenya").
+
+### Cause
+The FastAPI server process was "stale" (running old code in memory) while the browser was running the new version of `script.js`.
+- **Mismatch**: The old server returned a **List `[]`**, but the new frontend expected an **Object `{"results": []}`**.
+- **Result**: The frontend failed to render the grid, defaulting to an error message.
+
+### Fix
+1. **Process Reset**: Performed a `taskkill` on all stale Python processes and performed a clean restart via `run.bat`.
+2. **Data Resilience Layer**: Updated `script.js` to automatically detect both the old "Array" format and the new "Object" format. This ensures that the UI remains functional even if the backend is slightly out of sync during a transition.
+
+---
+
 ## Phase 9: V2 UI Redesign (⏳ Pending — awaiting Stitch MCP)
 MCP server must be added to the Antigravity MCP configuration before this phase can begin.
 Specifically focusing on a modernized "Premium Dark Mode" layout with optimized grid resizing.

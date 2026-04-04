@@ -172,7 +172,20 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=40`);
             const data = await res.json();
-            const results = data.results;
+            
+            // Resilience: Handle both Array (Legacy) and Object (Paginated)
+            let results = [];
+            let totalPages = 1;
+            let totalResults = 0;
+            
+            if (Array.isArray(data)) {
+                results = data;
+                totalResults = data.length;
+            } else if (data && data.results) {
+                results = data.results;
+                totalPages = data.pages || 1;
+                totalResults = data.total || results.length;
+            }
             
             if(!results || results.length === 0) {
                 resultsGrid.innerHTML = '<p>No results found</p>';
@@ -189,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `).join('');
             
-            renderPagination(data.page, data.pages, data.total);
+            renderPagination(page, totalPages, totalResults);
             
         } catch(e) {
             resultsGrid.innerHTML = '<p>Search failed</p>';
