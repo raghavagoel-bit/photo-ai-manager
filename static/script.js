@@ -160,8 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastQuery = "";
 
     const performSearch = async (page = 1) => {
-        const query = searchInput.value;
-        if (!query.strip && !query) return;
+        const query = searchInput.value.trim();
+        if (!query) return;
         
         currentSearchPage = page;
         lastQuery = query;
@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             const results = data.results;
             
-            if(results.length === 0) {
+            if(!results || results.length === 0) {
                 resultsGrid.innerHTML = '<p>No results found</p>';
                 return;
             }
@@ -209,10 +209,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('next-page').addEventListener('click', () => performSearch(page + 1));
     };
 
-    searchBtn.addEventListener('click', () => performSearch(1));
-    searchInput.addEventListener('keypress', (e) => {
+    searchBtn.onclick = () => performSearch(1);
+    
+    searchInput.onkeypress = (e) => {
         if(e.key === 'Enter') performSearch(1);
-    });
+    };
 
     // --- Modal Logic ---
     const modal = document.getElementById("photo-modal");

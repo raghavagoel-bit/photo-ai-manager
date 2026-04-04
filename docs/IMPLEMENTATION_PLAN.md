@@ -293,6 +293,21 @@ Implemented a full-stack pagination system using SQL offsets and dynamic UI cont
 
 ---
 
+## Bug Fix Session 5: Search Pagination Regression (✅ Fixed)
+
+### Problem
+After implementing Phase 8 (Search Pagination), the search functionality stopped returning results. 
+
+### Cause
+In `script.js`, the `addEventListener('click', performSearch)` triggered a "MouseEvent shadowing" bug. JavaScript passes the `event` object as the first parameter to the callback; our `performSearch(page)` function was interpreting this object as a page number, resulting in `NaN` offsets in the backend SQL query.
+
+### Fix
+1. **Event Wrapper**: Updated the click and keypress listeners to explicitly pass the number `1` (e.g., `() => performSearch(1)`).
+2. **Logic Cleanup**: Corrected a typo where Python's `string.strip()` was used instead of Javascript's `string.trim()`.
+3. **Empty Query Handling**: Implemented a guard clause to prevent empty searches from triggering unnecessary API calls.
+
+---
+
 ## Phase 9: V2 UI Redesign (⏳ Pending — awaiting Stitch MCP)
 MCP server must be added to the Antigravity MCP configuration before this phase can begin.
 Specifically focusing on a modernized "Premium Dark Mode" layout with optimized grid resizing.
