@@ -1,7 +1,8 @@
 import os
 import exifread
-from database import insert_photo, insert_face, get_connection
+from main_backend import get_connection
 from face_utils import process_image
+from scene_utils import detect_scene
 
 SUPPORTED_EXTS = {'.jpg', '.jpeg', '.png'}
 THUMBNAIL_DIR = os.path.join(os.path.dirname(__file__), 'data', 'thumbnails')
@@ -41,18 +42,19 @@ def scan_directory(root_dir, status_dict=None):
                 
                 loc_tags, date_taken = get_exif_location(full_path)
                 
-                # Feedback loop for massive 40MB+ photos
+                # Dual AI: Face Recognition + Scene Awareness
                 print(f"Scanning [{scanned_count+1}]: {file} ({os.path.getsize(full_path)//1024//1024}MB)...")
                 
                 faces = process_image(full_path, THUMBNAIL_DIR)
+                ai_tags = detect_scene(full_path) # Identify Animals, Objects, Places
                 
                 if faces:
-                    photo_id = insert_photo(full_path, loc_tags, date_taken)
+                    photo_id = insert_photo(full_path, loc_tags, date_taken, ai_tags)
                     for face in faces:
                         insert_face(photo_id, face['box'], face['encoding'], face['thumbnail'])
                         face_count += 1
                 else:
-                    insert_photo(full_path, loc_tags, date_taken)
+                    insert_photo(full_path, loc_tags, date_taken, ai_tags)
                     
                 scanned_count += 1
                 if status_dict is not None:

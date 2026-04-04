@@ -21,7 +21,9 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             file_path TEXT UNIQUE,
             location_tags TEXT,
-            date_taken TEXT
+            ai_tags TEXT,
+            date_taken TEXT,
+            scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     # People table
@@ -50,22 +52,29 @@ def init_db():
     conn.commit()
     conn.close()
 
-def insert_photo(file_path, location_tags="", date_taken=""):
+def insert_photo(file_path, location_tags, date_taken, ai_tags=""):
     conn = get_connection()
     c = conn.cursor()
     try:
         c.execute('''
-            INSERT INTO photos (file_path, location_tags, date_taken)
-            VALUES (?, ?, ?)
-        ''', (file_path, location_tags, date_taken))
+            INSERT OR IGNORE INTO photos (file_path, location_tags, date_taken, ai_tags)
+            VALUES (?, ?, ?, ?)
+        ''', (file_path, location_tags, date_taken, ai_tags))
         photo_id = c.lastrowid
+        if not photo_id:
+            c.execute('SELECT id FROM photos WHERE file_path = ?', (file_path,))
+            photo_id = c.fetchone()['id']
         conn.commit()
-    except sqlite3.IntegrityError:
-        # Already exists, just return its ID
-        c.execute('SELECT id FROM photos WHERE file_path = ?', (file_path,))
-        photo_id = c.fetchone()['id']
+        return photo_id
     finally:
         conn.close()
+
+def update_photo_tags(photo_id, ai_tags):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('UPDATE photos SET ai_tags = ? WHERE id = ?', (ai_tags, photo_id))
+    conn.commit()
+    conn.close()
     return photo_id
 
 def insert_face(photo_id, box, encoding_array, thumbnail_path):

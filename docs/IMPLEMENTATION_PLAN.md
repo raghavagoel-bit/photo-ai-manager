@@ -324,6 +324,23 @@ The FastAPI server process was "stale" (running old code in memory) while the br
 
 ---
 
-## Phase 9: V2 UI Redesign (⏳ Pending — awaiting Stitch MCP)
+## Phase 10: AI Scene Intelligence & Multi-Tag Search (✅ Completed)
+
+### Problem
+Search was limited to people's names or manually extracted GPS folder names. Users couldn't search for "Lions" or "German Shepherds" unless they had already manually tagged them.
+
+### Solution
+Integrated a second AI layer for **General Object Detection** using the **MobileNetV3-Large** neural network (pre-trained on 1,000 ImageNet categories).
+
+### Implementation
+1. **AI Engine (`scene_utils.py`)**: Implemented a 1,000-class classifier that identifies animals, places, and objects. Applied a **0.5 confidence threshold** per user request.
+2. **Schema Migration**: Added the `ai_tags` column to the `photos` table.
+3. **Scanner Integration**: Updated `scanner.py` to run both Face Recognition and Scene Awareness in parallel.
+4. **Universal Search (`main_backend.py`)**: Re-engineered the search API to support multi-term "AND" logic (e.g., `"Kenya Lion"` finds only lions in Kenya).
+5. **Backfill Script (`tools/retag_existing.py`)**: Created a tool to automatically analyze and tag the existing 4,000 photos in the library.
+
+---
+
+## Phase 11: V2 UI Redesign (⏳ Pending — awaiting Stitch MCP)
 MCP server must be added to the Antigravity MCP configuration before this phase can begin.
 Specifically focusing on a modernized "Premium Dark Mode" layout with optimized grid resizing.

@@ -63,26 +63,39 @@ graph TD
 
 ---
 
+## 🚀 Key Features
+
+*   **512-d Recognition**: Upgraded from 128-d to **Facenet512**, providing 4x higher detail per face for commercial-grade accuracy.
+*   **Auto-Recognition**: AI "remembers" people you have already named and automatically tags them in new scans.
+*   **AI Scene Intelligence**: Integrated **MobileNetV3** for 1,000-category object recognition (German Shepherd, Lion, Sunset, etc.) with a 0.5 confidence floor.
+*   **Multi-Term Search**: Supports powerful keyword combinations like "Kenya Lion" using refined AND-logic.
+*   **Search Pagination**: Highly scalable search interface that can handle thousands of results with snappy Next/Prev controls.
+*   **Detection Reliability**: Automatic in-memory image downsampling (to 1280px) ensures face detection never fails on high-resolution (10MB+) photos.
+
+---
+
 ## 📂 Script Breakdown
 
 ### 1. `main_backend.py` (The API Server)
-Runs the `FastAPI` server. It handles face clustering, identity matching, and paginated searches.
+Runs the `FastAPI` server. It handles face clustering, identity matching, and paginated searches through both social and object keywords.
 
 ### 2. `scanner.py` (The Heavy Lifter)
-Recursively indexes folders, reads EXIF metadata (Date/GPS), and extracts faces.
-* **Auto-Downsampling**: Dynamically resizes huge images in-memory to keep the AI engine fast and reliable.
+Our master processing script. It handles:
+- **EXIF Discovery**: Extracts GPS and Date Taken.
+- **Face Fingerprinting**: Generates 512-d biometric vectors.
+- **Scene Awareness**: Runs the 1,000-class object classifier to tag 'Lions', 'Dogs', and 'Places'.
+- **Thumbnail Processing**: Creates 150x150p face crops and full thumbnails.
 
-### 3. `face_utils.py` (The AI Engine)
-Re-engineered to use **PyTorch and DeepFace (RetinaFace)**.
-* **Extraction**: Generates 512-float mathematical arrays for setiap face.
-* **Recognition**: Contains the centroid-based matching logic for auto-tagging.
+### 3. `scene_utils.py` (The Scene Intelligence Layer)
+The new brain for object awareness.
+* **Extraction**: Predicts what is in the photo (e.g., "African Elephant: 0.98").
+* **Keywords**: Commits high-confidence tags to your photo library for instant search.
 
 ### 4. `tools/` (CLI Diagnostics)
-A dedicated folder for library maintenance:
-* `tools/check_db.py`: Verifies database integrity.
-* `tools/analyze_distances.py`: Analyzes how 'close' different identities are in the AI's 512-d space.
-* `tools/debug_face_512.py`: Diagnostic tool for the recognition engine.
-* `tools/reset_faces.py`: High-fidelity data migration tool.
+Maintenance scripts for the AI library:
+* `tools/retag_existing.py`: High-performance tool to analyze all 4,000 of your existing photos to add 'Scene' awareness.
+* `tools/analyze_distances.py`: Distance gap analysis for the 512-d biometric space.
+* `tools/debug_face_512.py`: Diagnostics for identity recognition.
 
 ### 5. `templates/` & `static/`
 Modern UI built with **Glassmorphism** design principles, using raw JS and CSS for maximum customizability.

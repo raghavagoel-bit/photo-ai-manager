@@ -194,28 +194,44 @@ async def search_photos(query: str = "", page: int = 1, limit: int = 50):
     
     # Calculate offset
     offset = (page - 1) * limit
-    search_term = f"%{query}%"
+    
+    # NEW: Split query into multiple terms for AND search (e.g. "Kenya Lion")
+    terms = [t.strip() for t in query.replace(',', ' ').split() if t.strip()]
+    
+    if not terms:
+        # Default: Show everything if no query
+        where_clause = "1=1"
+        params = []
+    else:
+        # Build AND query: Each term must match Name, Location, FilePath OR AI Tags
+        clauses = []
+        params = []
+        for term in terms:
+            t = f"%{term}%"
+            clauses.append("(pe.name LIKE ? OR p.location_tags LIKE ? OR p.file_path LIKE ? OR p.ai_tags LIKE ?)")
+            params.extend([t, t, t, t])
+        where_clause = " AND ".join(clauses)
 
-    # Step 1: Get total count for this search
-    c.execute('''
+    # Step 1: Get total count
+    c.execute(f'''
         SELECT COUNT(DISTINCT p.id) as total
         FROM photos p
         LEFT JOIN faces f ON p.id = f.photo_id
         LEFT JOIN people pe ON f.person_id = pe.id
-        WHERE pe.name LIKE ? OR p.location_tags LIKE ? OR p.file_path LIKE ?
-    ''', (search_term, search_term, search_term))
+        WHERE {where_clause}
+    ''', params)
     total_count = c.fetchone()['total']
 
     # Step 2: Get paginated results
-    c.execute('''
-        SELECT DISTINCT p.id, p.file_path, p.location_tags, p.date_taken
+    c.execute(f'''
+        SELECT DISTINCT p.id, p.file_path, p.location_tags, p.ai_tags, p.date_taken
         FROM photos p
         LEFT JOIN faces f ON p.id = f.photo_id
         LEFT JOIN people pe ON f.person_id = pe.id
-        WHERE pe.name LIKE ? OR p.location_tags LIKE ? OR p.file_path LIKE ?
+        WHERE {where_clause}
         ORDER BY p.date_taken DESC, p.id DESC
         LIMIT ? OFFSET ?
-    ''', (search_term, search_term, search_term, limit, offset))
+    ''', params + [limit, offset])
     
     rows = c.fetchall()
     conn.close()
