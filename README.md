@@ -1,6 +1,6 @@
-# Photo AI Manager
+# Photo AI Manager (V1.5)
 
-This is a totally local, private, AI-powered system designed to index large physical drives of photos, recognize faces, extract locations, and allow lightning-fast search.
+This is a totally local, private, AI-powered system designed to index large physical drives of photos, recognize faces with high-fidelity, and allow scalable search.
 
 ---
 
@@ -18,6 +18,7 @@ graph TD
     DB[(SQLite Database)]
     Disk[External Photo Drives]
     Thumb[Thumbnail Cache]
+    Tools[CLI Diagnostic Tools]
 
     %% Interactions
     UI <-->|HTTP Requests| API
@@ -26,7 +27,7 @@ graph TD
     API -.->|Triggers| Scanner
     Scanner -->|Reads original photos| Disk
     Scanner -->|1. Sends image array| FaceUtil
-    FaceUtil -->|2. Returns 128-d encoding & Box| Scanner
+    FaceUtil -->|2. Returns 512-d encoding & Box| Scanner
     FaceUtil -->|Transforms| Thumb
     Scanner -->|3. Writes encodings & Paths| DB
     
@@ -34,6 +35,9 @@ graph TD
     API <-->|SQL Queries| DB
     API -->|Serves| Thumb
     API -->|Serves Full Photo| Disk
+    
+    %% Maintenance
+    Tools <-->|Database Checks| DB
     
     %% Styling
     classDef web fill:#10b981,stroke:#047857,stroke-width:2px,color:white;
@@ -49,33 +53,43 @@ graph TD
 
 ---
 
+## 🚀 Key Features
+
+*   **512-d Recognition**: Upgraded from 128-d to **Facenet512**, providing 4x higher detail per face for commercial-grade accuracy.
+*   **Auto-Recognition**: AI "remembers" people you have already named and automatically tags them in new scans.
+*   **Search Pagination**: Highly scalable search interface that can handle thousands of results with snappy Next/Prev controls.
+*   **Detection Reliability**: Automatic in-memory image downsampling (to 1280px) ensures face detection never fails on high-resolution (10MB+) photos.
+*   **Windows Optimized**: Integrated `PYTHONUTF8` environment handling to prevent console crashes during AI processing.
+
+---
+
 ## 📂 Script Breakdown
 
 ### 1. `main_backend.py` (The API Server)
-This is the heart of the application. It runs the lightweight `FastAPI` server. 
-* It serves the web UI styling and HTML.
-* It safely executes background tasks to prevent locking up the frontend.
-* *Fix History:* Overcame a strict `BackgroundTasks` Pydantic routing bug that prevented JavaScript `FormData` from triggering.
+Runs the `FastAPI` server. It handles face clustering, identity matching, and paginated searches.
 
 ### 2. `scanner.py` (The Heavy Lifter)
-This script recursively runs through your entire hard drive folder by folder. 
-* **Smart Hashing:** It actively checks if a file is already in the database to prevent duplicate work.
-* **Live Updates:** Passes a mutating memory dictionary (`status_dict`) directly to FastAPI so the web frontend can see live scanning updates per photo instead of waiting for the folder to finish.
-* It reads the EXIF metadata to figure out the **Date Taken** and **GPS Coordinates**.
+Recursively indexes folders, reads EXIF metadata (Date/GPS), and extracts faces.
+* **Auto-Downsampling**: Dynamically resizes huge images in-memory to keep the AI engine fast and reliable.
 
 ### 3. `face_utils.py` (The AI Engine)
-Re-engineered to use **PyTorch and DeepFace** for robust GPU acceleration.
-* *Fix History:* We previously used `dlib`, but the lack of pre-compiled cuDNN on Windows caused absolute Python segmentation faults. DeepFace utilizes bundled CUDA dependencies to prevent this.
-* **Detection:** Specifically uses `RetinaFace` via PyTorch to find human faces correctly.
-* **Extraction:** Turns the face into a 128-dimensional array mathematically.
-* **Cropping:** Drops a 150x150 pixel thumbnail into `data/thumbnails/`.
+Re-engineered to use **PyTorch and DeepFace (RetinaFace)**.
+* **Extraction**: Generates 512-float mathematical arrays for setiap face.
+* **Recognition**: Contains the centroid-based matching logic for auto-tagging.
 
-### 4. `database.py` (The Memory)
-The interface for exactly how data is read to and from the `index.db` SQLite file. It handles three tables:
-1. **Photos**: Stores original paths and EXIF locations.
-2. **Faces**: Stores the 128-d math arrays, bounding box coords, and linking IDs.
-3. **People**: Stores string names that you have assigned to faces.
+### 4. `tools/` (CLI Diagnostics)
+A dedicated folder for library maintenance:
+* `tools/check_db.py`: Verifies database integrity.
+* `tools/analyze_distances.py`: Analyzes how 'close' different identities are in the AI's 512-d space.
+* `tools/debug_face_512.py`: Diagnostic tool for the recognition engine.
+* `tools/reset_faces.py`: High-fidelity data migration tool.
 
-### 5. `templates/index.html` & `static/`
-The UI. Built entirely with raw Javascript and customized CSS to keep dependencies low. Uses polling `fetch()` loops to dynamically update.
-* *Upcoming:* Will be entirely replaced by an experimental **V2 UI**, pulled directly from Google Stitch integration utilizing an AI Context Bridge.
+### 5. `templates/` & `static/`
+Modern UI built with **Glassmorphism** design principles, using raw JS and CSS for maximum customizability.
+
+---
+
+## ⚙️ Running the Project
+
+1. **Requirements**: `pip install -r requirements.txt`
+2. **Execution**: Always use **`run.bat`** on Windows. This ensures `PYTHONUTF8=1` is set, preventing console crashes caused by emojis in AI libraries.

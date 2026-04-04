@@ -259,5 +259,40 @@ Implemented automatic "in-memory downsampling". If an image is larger than 1280p
 
 ---
 
-## Phase 7: V2 UI Redesign (⏳ Pending — awaiting Stitch MCP)
+---
+
+## Phase 7: Face Auto-Recognition (✅ Completed)
+
+### Problem
+Users had to manually name every cluster, even if they had already named that same person in a previous scan. This created redundant work.
+
+### Solution
+Implemented a **Centroid-based Identity Engine**. The system calculates an "Average Face" (mean vector) for every person in the `people` table based on their confirmed photos.
+
+### Implementation
+1. **Centroid Calculation (`face_utils.py`)**: `compute_person_centroids()` groups all tagged faces by ID and averages their 512-d embeddings.
+2. **Recognition Pass (`main_backend.py`)**: Updated `/api/faces` to run a matching pass before clustering.
+3. **Thresholding**: Used an **0.85 Euclidean distance** threshold (specifically tuned for Facenet512) to auto-tag unknowns.
+4. **Auto-Tagging**: Matches are automatically written to the DB and removed from the "Unknown" list instantly.
+
+---
+
+## Phase 8: Search Pagination (✅ Completed)
+
+### Problem
+The search results were hard-coded to a `LIMIT 100`, making it impossible to browse large collections of a specific person's photos.
+
+### Solution
+Implemented a full-stack pagination system using SQL offsets and dynamic UI controls.
+
+### Implementation
+1. **Backend (`main_backend.py`)**: Updated `/api/search` to support `page` and `limit` parameters.
+2. **Count Logic**: Added a `COUNT(DISTINCT p.id)` query to return total result counts for UI status indicators.
+3. **Frontend (`script.js` / `index.html`)**: Added a dedicated pagination bar with "Next" and "Previous" buttons.
+4. **Dynamic Slicing**: The UI now fetches 40 photos at a time, keeping the gallery snappy even with thousands of results.
+
+---
+
+## Phase 9: V2 UI Redesign (⏳ Pending — awaiting Stitch MCP)
 MCP server must be added to the Antigravity MCP configuration before this phase can begin.
+Specifically focusing on a modernized "Premium Dark Mode" layout with optimized grid resizing.

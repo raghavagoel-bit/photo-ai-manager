@@ -164,7 +164,49 @@ Fix "Zero Faces Detected" bug on high-resolution (8MB+) images.
 
 ---
 
-## Phase 7: GitHub Upload (✅ Completed)
+## Phase 7: Face Auto-Recognition (✅ Completed)
+
+### Goal
+Automatically identify people in new scans based on names you have already provided.
+
+### 7.1: Identity Memory
+- Implemented `compute_person_centroids` in `face_utils.py` to calculate the "Average Face" for every named person.
+- Uses all confirmed photos of a person to build a robust 512-d identity profile.
+
+### 7.2: Auto-Match Engine
+- Updated `/api/faces` to run a "Recognition Pass" before "Clustering".
+- Faces matching a known person within a Euclidean distance of **0.85** are automatically tagged.
+- **Result**: New photos of "John" are automatically named "John" the moment the "Tag Faces" page is opened.
+
+---
+
+## Phase 8: Search Pagination (✅ Completed)
+
+### Goal
+Efficiently browse large search results (thousands of photos) without performance lag.
+
+### 8.1: Backend Optimization
+- Updated `/api/search` in `main_backend.py` to support `limit` and `offset`.
+- Added a two-step query to return `total` result counts and paginated `results`.
+- Results are now ordered by **Date Taken** (descending) by default.
+
+### 8.2: Frontend UI
+- Added a gorgeous glass-panel pagination bar in `index.html`.
+- Implemented "Previous" and "Next" buttons with smart disabling (e.g., Prev is disabled on the first page).
+- Added a "Page X of Y" status indicator.
+
+### 8.3: Scripting
+- Updated `script.js` to manage the `currentSearchPage` state.
+- Each search resets to Page 1.
+- Each navigation fetches precisely 40 photos, keeping the UI snappy on all devices.
+
+---
+
+## Phase 9: V2 UI Redesign (⏳ Pending — awaiting Stitch MCP)
+
+---
+
+## Phase 9: GitHub Upload (✅ Completed)
 
 - [x] Initialized local git repository.
 - [x] Optimized `.gitignore` to exclude large AI weights (`*.h5`, `*.onnx`) and sensitive data (`data/`, `*.db`).

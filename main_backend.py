@@ -9,7 +9,7 @@ from sklearn.cluster import AgglomerativeClustering
 from database import (get_all_faces, update_face_person, 
                      create_person, get_person_by_name, get_connection)
 from scanner import scan_directory
-from face_utils import check_models_health
+from face_utils import check_models_health, match_face, compute_person_centroids
 
 app = FastAPI()
 
@@ -89,12 +89,35 @@ async def get_faces(status: str = "all", cluster: bool = False):
     faces = get_all_faces(has_person=has_person)
     
     if cluster and has_person is False and len(faces) > 0:
-        # AgglomerativeClustering with complete linkage:
-        # Only merges clusters when the FARTHEST pair of points across both clusters
-        # is within the threshold. This is the most conservative strategy — it prevents
-        # different people bleeding into the same cluster via a single bridge embedding.
-        # Facenet512 distances: same-person pairs < 0.9, different people median=1.3.
-        # Setting threshold=1.0 for a balanced conservative grouping in 512-d space.
+        # --- PHASE 7: AUTO-RECOGNITION Pass ---
+        # Before clustering unknowns into new groups, check if any match already-named people.
+        known_faces = get_all_faces(has_person=True)
+        centroids = compute_person_centroids(known_faces) if known_faces else {}
+        
+        remaining_unknowns = []
+        auto_tagged_count = 0
+        
+        for face in faces:
+            # Try to match against existing names (threshold=0.85 is conservative for 512-d)
+            matched_person_id = match_face(face['encoding'], centroids, threshold=0.85)
+            
+            if matched_person_id:
+                # We found a known person! Auto-tag them and skip clustering.
+                update_face_person(face['id'], matched_person_id)
+                auto_tagged_count += 1
+            else:
+                remaining_unknowns.append(face)
+        
+        if auto_tagged_count > 0:
+            print(f"AI: Auto-recognized {auto_tagged_count} face(s) from previous name mappings.")
+            
+        # Only cluster the faces that we couldn't automatically recognize.
+        if not remaining_unknowns:
+            return []
+            
+        faces = remaining_unknowns
+        
+        # --- PHASE 4b/6: AgglomerativeClustering on remaining unknowns ---
         encodings = np.stack([f['encoding'] for f in faces])
         clustering = AgglomerativeClustering(
             n_clusters=None,
@@ -165,21 +188,45 @@ async def bulk_tag_faces(face_ids: str = Form(...), person_name: str = Form(...)
     return {"status": "success", "person_id": person_id, "tagged_count": len(ids_to_tag)}
 
 @app.get("/api/search")
-async def search_photos(query: str = ""):
+async def search_photos(query: str = "", page: int = 1, limit: int = 50):
     conn = get_connection()
     c = conn.cursor()
-    # Basic search by person name or location tag
+    
+    # Calculate offset
+    offset = (page - 1) * limit
+    search_term = f"%{query}%"
+
+    # Step 1: Get total count for this search
+    c.execute('''
+        SELECT COUNT(DISTINCT p.id) as total
+        FROM photos p
+        LEFT JOIN faces f ON p.id = f.photo_id
+        LEFT JOIN people pe ON f.person_id = pe.id
+        WHERE pe.name LIKE ? OR p.location_tags LIKE ? OR p.file_path LIKE ?
+    ''', (search_term, search_term, search_term))
+    total_count = c.fetchone()['total']
+
+    # Step 2: Get paginated results
     c.execute('''
         SELECT DISTINCT p.id, p.file_path, p.location_tags, p.date_taken
         FROM photos p
         LEFT JOIN faces f ON p.id = f.photo_id
         LEFT JOIN people pe ON f.person_id = pe.id
         WHERE pe.name LIKE ? OR p.location_tags LIKE ? OR p.file_path LIKE ?
-        LIMIT 100
-    ''', (f"%{query}%", f"%{query}%", f"%{query}%"))
+        ORDER BY p.date_taken DESC, p.id DESC
+        LIMIT ? OFFSET ?
+    ''', (search_term, search_term, search_term, limit, offset))
+    
     rows = c.fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    
+    return {
+        "results": [dict(r) for r in rows],
+        "total": total_count,
+        "page": page,
+        "limit": limit,
+        "pages": (total_count + limit - 1) // limit
+    }
 
 @app.get("/photo/{photo_id}")
 async def get_full_photo(photo_id: int):

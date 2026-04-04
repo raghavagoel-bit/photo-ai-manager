@@ -154,13 +154,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('search-input');
     const searchBtn = document.getElementById('search-btn');
     const resultsGrid = document.getElementById('search-results');
+    const paginationCnt = document.getElementById('pagination-cnt');
+    
+    let currentSearchPage = 1;
+    let lastQuery = "";
 
-    const performSearch = async () => {
+    const performSearch = async (page = 1) => {
         const query = searchInput.value;
+        if (!query.strip && !query) return;
+        
+        currentSearchPage = page;
+        lastQuery = query;
+        
         resultsGrid.innerHTML = '<p>Searching...</p>';
+        paginationCnt.innerHTML = '';
+        
         try {
-            const res = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
-            const results = await res.json();
+            const res = await fetch(`/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=40`);
+            const data = await res.json();
+            const results = data.results;
             
             if(results.length === 0) {
                 resultsGrid.innerHTML = '<p>No results found</p>';
@@ -176,14 +188,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `).join('');
+            
+            renderPagination(data.page, data.pages, data.total);
+            
         } catch(e) {
             resultsGrid.innerHTML = '<p>Search failed</p>';
         }
     };
 
-    searchBtn.addEventListener('click', performSearch);
+    const renderPagination = (page, totalPages, totalResults) => {
+        if (totalPages <= 1) return;
+        
+        paginationCnt.innerHTML = `
+            <button class="pagination-btn" id="prev-page" ${page === 1 ? 'disabled' : ''}>Previous</button>
+            <span class="page-info">Page ${page} of ${totalPages} <small>(${totalResults} total)</small></span>
+            <button class="pagination-btn" id="next-page" ${page === totalPages ? 'disabled' : ''}>Next</button>
+        `;
+        
+        document.getElementById('prev-page').addEventListener('click', () => performSearch(page - 1));
+        document.getElementById('next-page').addEventListener('click', () => performSearch(page + 1));
+    };
+
+    searchBtn.addEventListener('click', () => performSearch(1));
     searchInput.addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') performSearch();
+        if(e.key === 'Enter') performSearch(1);
     });
 
     // --- Modal Logic ---

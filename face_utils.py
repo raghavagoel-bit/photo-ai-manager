@@ -133,3 +133,45 @@ def process_image(image_path, thumbnail_dir):
         print(f"AI: No faces detected in {image_path} (RetinaFace returned empty or invalid).")
             
     return faces
+
+def compute_person_centroids(known_faces):
+    """
+    Groups known faces by person_id and calculates the average encoding (centroid)
+    for each person. This represents the 'ideal' identity model for each person.
+    """
+    centroids = {}
+    person_encodings = {}
+    
+    for f in known_faces:
+        p_id = f['person_id']
+        if p_id not in person_encodings:
+            person_encodings[p_id] = []
+        person_encodings[p_id].append(f['encoding'])
+        
+    for p_id, encs in person_encodings.items():
+        # Stack 512-d vectors and take the mean along axis 0
+        centroids[p_id] = np.mean(np.stack(encs), axis=0)
+        
+    return centroids
+
+def match_face(encoding, centroids, threshold=0.85):
+    """
+    Compares a new encoding against known person centroids.
+    Returns the person_id of the best match if it's within the confidence threshold.
+    """
+    if not centroids:
+        return None
+        
+    best_match = None
+    min_dist = float('inf')
+    
+    for p_id, centroid in centroids.items():
+        # Standard Euclidean distance in 512-d normalized space
+        dist = np.linalg.norm(encoding - centroid)
+        if dist < min_dist:
+            min_dist = dist
+            best_match = p_id
+            
+    if min_dist < threshold:
+        return best_match
+    return None
