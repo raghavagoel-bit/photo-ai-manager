@@ -164,5 +164,11 @@ Fix "Zero Faces Detected" bug on high-resolution (8MB+) images.
 
 ---
 
-## Phase 7: V2 UI Redesign (⏳ Pending — awaiting Stitch MCP)
- configuration. Once enabled, scaffold `v2_ui/` at `/v2` route based on Stitch design tokens.
+## Phase 7: GitHub Upload (✅ Completed)
+
+- [x] Initialized local git repository.
+- [x] Optimized `.gitignore` to exclude large AI weights (`*.h5`, `*.onnx`) and sensitive data (`data/`, `*.db`).
+- [x] Renamed primary branch to `main`.
+- [x] Added remote origin: `https://github.com/raghavagoel-bit/photo-ai-manager`.
+- [x] Force-pushed initial codebase to ensure a clean start on GitHub.
+- [x] Verified repository contents (scripts and documentation only, no personal data).
