@@ -8,3 +8,4 @@ tools/__pycache__/
 *.pb
 .env
 .venv/
+*.log

@@ -23,6 +23,11 @@ def init_db():
             location_tags TEXT,
             ai_tags TEXT,
             date_taken TEXT,
+            camera_make TEXT,
+            camera_model TEXT,
+            iso TEXT,
+            aperture TEXT,
+            focal_length TEXT,
             scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -49,17 +54,36 @@ def init_db():
             FOREIGN KEY(person_id) REFERENCES people(id)
         )
     ''')
+    
+    # SCHEMA MIGRATION (V1 -> V2)
+    # Safely add metadata columns for existing V1 databases
+    needed_columns = {
+        "camera_make": "TEXT",
+        "camera_model": "TEXT",
+        "iso": "TEXT",
+        "aperture": "TEXT",
+        "focal_length": "TEXT"
+    }
+    
+    c.execute('PRAGMA table_info(photos)')
+    existing_cols = [row['name'] for row in c.fetchall()]
+    
+    for col, col_type in needed_columns.items():
+        if col not in existing_cols:
+            print(f"[DATABASE] Migrating: Adding missing column {col} to photos table.")
+            c.execute(f'ALTER TABLE photos ADD COLUMN {col} {col_type}')
+    
     conn.commit()
     conn.close()
 
-def insert_photo(file_path, location_tags, date_taken, ai_tags=""):
+def insert_photo(file_path, location_tags, date_taken, ai_tags="", camera_make="", camera_model="", iso="", aperture="", focal_length=""):
     conn = get_connection()
     c = conn.cursor()
     try:
         c.execute('''
-            INSERT OR IGNORE INTO photos (file_path, location_tags, date_taken, ai_tags)
-            VALUES (?, ?, ?, ?)
-        ''', (file_path, location_tags, date_taken, ai_tags))
+            INSERT OR IGNORE INTO photos (file_path, location_tags, date_taken, ai_tags, camera_make, camera_model, iso, aperture, focal_length)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (file_path, location_tags, date_taken, ai_tags, camera_make, camera_model, iso, aperture, focal_length))
         photo_id = c.lastrowid
         if not photo_id:
             c.execute('SELECT id FROM photos WHERE file_path = ?', (file_path,))
@@ -119,6 +143,13 @@ def update_face_person(face_id, person_id):
     conn = get_connection()
     c = conn.cursor()
     c.execute('UPDATE faces SET person_id = ? WHERE id = ?', (person_id, face_id))
+    conn.commit()
+    conn.close()
+
+def untag_face(face_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('UPDATE faces SET person_id = NULL WHERE id = ?', (face_id,))
     conn.commit()
     conn.close()
 

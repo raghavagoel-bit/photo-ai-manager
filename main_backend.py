@@ -5,8 +5,8 @@ from fastapi.templating import Jinja2Templates
 import os
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
-
-from database import (get_all_faces, update_face_person, 
+import psutil
+from database import (get_all_faces, update_face_person, untag_face,
                      create_person, get_person_by_name, get_connection)
 from scanner import scan_directory
 from face_utils import check_models_health, match_face, compute_person_centroids
@@ -22,7 +22,7 @@ app.mount("/thumbnails", StaticFiles(directory="data/thumbnails"), name="thumbna
 templates = Jinja2Templates(directory="templates")
 
 # Global variables for background task state
-scan_status = {"is_scanning": False, "scanned_count": 0, "face_count": 0}
+scan_status = {"is_scanning": False, "scanned_count": 0, "face_count": 0, "phase": "Idle"}
 
 @app.on_event("startup")
 async def startup_event():
@@ -62,6 +62,7 @@ def run_scan_task(path: str):
     scan_status["is_scanning"] = True
     scan_status["scanned_count"] = 0
     scan_status["face_count"] = 0
+    scan_status["phase"] = "Ready"
     try:
         scanned, faces = scan_directory(path, status_dict=scan_status)
         scan_status["scanned_count"] = scanned
@@ -91,9 +92,62 @@ async def start_scan(background_tasks: BackgroundTasks, path: str = Form(...)):
 async def get_scan_status():
     return scan_status
 
-@app.get("/api/health")
-async def get_health():
-    return check_models_health()
+@app.get("/api/telemetry")
+async def get_telemetry():
+    """V2 High-Density Telemetry Endpoint."""
+    cpu_usage = psutil.cpu_percent(interval=None)
+    ram_usage = psutil.virtual_memory().percent
+    
+    # AI Score (Placeholder simulation for health/confidence average)
+    ai_score = 0.98 if check_models_health()["all_ok"] else 0.0
+    
+    # Get total photos from DB
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) as total FROM photos")
+    total_photos = c.fetchone()['total']
+    conn.close()
+    
+    return {
+        "is_scanning": scan_status["is_scanning"],
+        "phase": scan_status["phase"],
+        "scanned_count": scan_status["scanned_count"],
+        "total_photos": total_photos,
+        "face_count": scan_status["face_count"],
+        "cpu_usage": cpu_usage,
+        "ram_usage": ram_usage,
+        "ai_score": ai_score,
+        "tasks_per_second": round(scan_status["scanned_count"] / max(1, os.times()[4]), 2) if scan_status["is_scanning"] else 0
+    }
+
+@app.get("/api/identities")
+async def get_identities():
+    """List all identified persons and a sample image from their cluster."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        SELECT pe.id, pe.name, COUNT(f.id) as face_count, MIN(f.thumbnail_path) as sample_thumbnail
+        FROM people pe
+        JOIN faces f ON pe.id = f.person_id
+        GROUP BY pe.id
+    ''')
+    rows = c.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.get("/api/identity/{person_id}/clusters")
+async def get_identity_clusters(person_id: int):
+    """Retrieve all face crops for a specific person for review."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        SELECT id, thumbnail_path, photo_id
+        FROM faces
+        WHERE person_id = ?
+    ''', (person_id,))
+    rows = c.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 @app.get("/api/faces")
 async def get_faces(status: str = "all", cluster: bool = False):
@@ -191,6 +245,12 @@ async def tag_face(face_id: int, person_name: str = Form(...)):
     update_face_person(face_id, person_id)
     return {"status": "success", "person_id": person_id}
 
+@app.post("/api/faces/{face_id}/untag")
+async def untag_face_api(face_id: int):
+    """Remove a face from its currently assigned identity (Accuracy Management)."""
+    untag_face(face_id)
+    return {"status": "success"}
+
 @app.post("/api/faces/bulk_tag")
 async def bulk_tag_faces(face_ids: str = Form(...), person_name: str = Form(...)):
     # Accepts a comma-separated list of face IDs to massively apply the same tag
@@ -206,32 +266,42 @@ async def bulk_tag_faces(face_ids: str = Form(...), person_name: str = Form(...)
     return {"status": "success", "person_id": person_id, "tagged_count": len(ids_to_tag)}
 
 @app.get("/api/search")
-async def search_photos(query: str = "", page: int = 1, limit: int = 50):
+async def search_photos(
+    query: str = "", 
+    page: int = 1, 
+    limit: int = 50, 
+    date_start: str = None, 
+    date_end: str = None, 
+    camera: str = None
+):
     conn = get_connection()
     c = conn.cursor()
     
-    # Calculate offset
     offset = (page - 1) * limit
-    
-    # NEW: Split query into multiple terms for AND search (e.g. "Kenya Lion")
     terms = [t.strip().lower() for t in query.replace(',', ' ').split() if t.strip()]
     
-    if not terms:
-        # Default: Show everything if no query
-        where_clause = "1=1"
-        params = []
-    else:
-        # Build AND query: Each term must match Name, Location, FilePath OR AI Tags
-        clauses = []
-        params = []
+    clauses = ["1=1"]
+    params = []
+    
+    # Search keywords
+    if terms:
         for term in terms:
             t = f"%{term}%"
-            # Explicit LOWER() for case-insensitive keyword searches on all columns
             clauses.append("(LOWER(pe.name) LIKE ? OR LOWER(p.location_tags) LIKE ? OR LOWER(p.file_path) LIKE ? OR LOWER(p.ai_tags) LIKE ?)")
             params.extend([t, t, t, t])
-        where_clause = " AND ".join(clauses)
-
-    print(f"Executing search: query='{query}', terms={terms}") # Debug Logging
+            
+    # Filters
+    if date_start:
+        clauses.append("p.date_taken >= ?")
+        params.append(date_start)
+    if date_end:
+        clauses.append("p.date_taken <= ?")
+        params.append(date_end)
+    if camera:
+        clauses.append("p.camera_model LIKE ?")
+        params.append(f"%{camera}%")
+        
+    where_clause = " AND ".join(clauses)
 
     # Step 1: Get total count
     c.execute(f'''
@@ -245,7 +315,7 @@ async def search_photos(query: str = "", page: int = 1, limit: int = 50):
 
     # Step 2: Get paginated results
     c.execute(f'''
-        SELECT DISTINCT p.id, p.file_path, p.location_tags, p.ai_tags, p.date_taken
+        SELECT DISTINCT p.id, p.file_path, p.location_tags, p.ai_tags, p.date_taken, p.camera_model
         FROM photos p
         LEFT JOIN faces f ON p.id = f.photo_id
         LEFT JOIN people pe ON f.person_id = pe.id

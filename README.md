@@ -1,6 +1,32 @@
-# Photo AI Manager (V1.5)
+# Photo Manager V2: Stealth Pro Suite
 
-This is a totally local, private, AI-powered system designed to index large physical drives of photos, recognize faces with high-fidelity, and allow scalable search.
+A high-performance, local-first AI photo management system with deep scene intelligence and identity accuracy control.
+
+## 🧬 Tactical Stack
+- **AI Engine**: RetinaFace (Detection) + FaceNet512 (Recognition) + PyTorch
+- **Backend**: FastAPI (Python 3.11) + SQLite3 (WAL Mode)
+- **Frontend**: Vanilla JS (ES6+) + CSS Grid/Flex (Stealth Pro Theme)
+- **Monitoring**: `psutil` + Chart.js for real-time AI hardware telemetry
+
+## ⚡ Key V2 Features
+- **Four-Tab Navigation**: Scanner, Tagging, Identity Review, Search.
+- **Identity Accuracy**: View clusters and detach incorrect face mappings with one click.
+- **Advanced Metadata**: Extract and filter by Camera Model, ISO, Aperture, and GPS (EXIF).
+- **Batch Tagging**: Multi-select cluster identification with kinetic selection UI.
+- **State Persistence**: Remembers your active tab and search context across refreshes.
+
+## 🚀 Quick Start
+1.  **Clone & Install**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+2.  **Launch**:
+    Run `run.bat` (includes 3s safety delay for server binding).
+3.  **UI**:
+    Access the tactical dashboard at `http://localhost:8000`.
+
+## 🛠️ Operational Support
+All major V1-V2 bugs have been resolved. See [docs/bug_fixes.md](file:///c:/Raghava/Antigravity/photo_manager/docs/bug_fixes.md) for the full resolution log.
 
 ---
 
@@ -78,16 +104,6 @@ graph TD
 
 *   **512-d Recognition**: Upgraded from 128-d to **Facenet512**, providing 4x higher detail per face for commercial-grade accuracy.
 *   **Auto-Recognition**: AI "remembers" people you have already named and automatically tags them in new scans.
-*   **Search Pagination**: Highly scalable search interface that can handle thousands of results with snappy Next/Prev controls.
-*   **Detection Reliability**: Automatic in-memory image downsampling (to 1280px) ensures face detection never fails on high-resolution (10MB+) photos.
-*   **Windows Optimized**: Integrated `PYTHONUTF8` environment handling to prevent console crashes during AI processing.
-
----
-
-## 🚀 Key Features
-
-*   **512-d Recognition**: Upgraded from 128-d to **Facenet512**, providing 4x higher detail per face for commercial-grade accuracy.
-*   **Auto-Recognition**: AI "remembers" people you have already named and automatically tags them in new scans.
 *   **AI Scene Intelligence**: Integrated **MobileNetV3** for 1,000-category object recognition (German Shepherd, Lion, Sunset, etc.) with a 0.5 confidence floor.
 *   **Multi-Term Search**: Supports powerful keyword combinations like "Kenya Lion" using refined AND-logic.
 *   **Search Pagination**: Highly scalable search interface that can handle thousands of results with snappy Next/Prev controls.
@@ -97,29 +113,37 @@ graph TD
 
 ## 📂 Script Breakdown
 
-### 1. `main_backend.py` (The API Server)
-Runs the `FastAPI` server. It handles face clustering, identity matching, and paginated searches through both social and object keywords.
+### 1. `main_backend.py` (The V2 Hub)
+Runs the `FastAPI` server. It supports:
+- **High-Density Telemetry**: CPU, RAM, and AI Health stats via `psutil`.
+- **# V2 Infrastructure & Identity Expansion
 
-### 2. `scanner.py` (The Heavy Lifter)
-Our master processing script. It handles:
-- **EXIF Discovery**: Extracts GPS and Date Taken.
-- **Face Fingerprinting**: Generates 512-d biometric vectors.
+This plan is now focused on final polish and future expansions. All core V2 features and bug fixes have been moved to the [Bug Fixes Log](file:///c:/Raghava/Antigravity/photo_manager/docs/bug_fixes.md).
+
+## Completed Milestones (Stealth Pro Release)
+- ✅ **Deep stack migration**: RetinaFace + FaceNet512.
+- ✅ **UI Overhaul**: Horizontal tabbed navigation (Black/Red/Yellow).
+- ✅ **Telemetry Hub**: Integrated `psutil` for AI hardware monitoring.
+- ✅ **Identity Accuracy**: Built cluster review and untagging logic.
+- ✅ **Schema Bridge**: Auto-v1-to-v2 database migration.
+
+## Future Tactical Goals
+- [ ] Implement HEIC/HEIF support for mobile-centric libraries.
+- [ ] Add Map View integration for GPS-tagged photos.
+- [ ] Build a "Similarity" search (reverse image lookup).
+- **Advanced Search**: Multi-dimensional filtering by **Date Range**, **Camera Model**, and **GPS Location**.
+
+### 2. `scanner.py` (The Precision Engine)
+Upgraded indexing lifter:
+- **EXIF Extraction**: Now extracts GPS (Lat/Long), Device Make/Model, and technical ISO/Aperture settings.
+- **Fingerprinting**: Generates and stores 512-d biometric vectors.
 - **Scene Awareness**: Runs the 1,000-class object classifier to tag 'Lions', 'Dogs', and 'Places'.
-- **Thumbnail Processing**: Creates 150x150p face crops and full thumbnails.
 
-### 3. `scene_utils.py` (The Scene Intelligence Layer)
-The new brain for object awareness.
-* **Extraction**: Predicts what is in the photo (e.g., "African Elephant: 0.98").
-* **Keywords**: Commits high-confidence tags to your photo library for instant search.
-
-### 4. `tools/` (CLI Diagnostics)
-Maintenance scripts for the AI library:
-* `tools/retag_existing.py`: High-performance tool to analyze all 4,000 of your existing photos to add 'Scene' awareness.
-* `tools/analyze_distances.py`: Distance gap analysis for the 512-d biometric space.
-* `tools/debug_face_512.py`: Diagnostics for identity recognition.
-
-### 5. `templates/` & `static/`
-Modern UI built with **Glassmorphism** design principles, using raw JS and CSS for maximum customizability.
+### 3. `templates/` & `static/`
+A complete UI redesign following the **Stealth Pro** design system:
+- **Aesthetic**: Abyss Black (#000000) with Racing Red and Electric Yellow accents.
+- **Navigation**: Horizontal **Tabbed Architecture** for a professional workflow.
+- **Visualization**: **Chart.js** integration for real-time telemetry gauges.
 
 ---
 

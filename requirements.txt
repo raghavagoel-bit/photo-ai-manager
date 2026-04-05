@@ -8,3 +8,4 @@ face_recognition
 Pillow
 exifread
 numpy
+psutil

@@ -3,84 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Photo Recognition AI</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>Antigravity Photos V2 | Stealth Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <!-- Chart.js for Telemetry Gauges -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar -->
-        <nav class="sidebar glass-panel">
+        <!-- Header & Top Navigation -->
+        <header>
             <div class="logo">
-                <h2>Photo AI</h2>
+                <h2>ANTIGRAVITY <span>PHOTOS</span></h2>
             </div>
-            <ul class="nav-links">
-                <li><button class="nav-btn active" data-target="scan-sec">Scanner</button></li>
-                <li><button class="nav-btn" data-target="tag-sec">Tag Faces</button></li>
-                <li><button class="nav-btn" data-target="search-sec">Search</button></li>
-            </ul>
-            <div id="ai-health-status" class="health-status">
-                Checking AI Engine...
+            <nav class="main-nav">
+                <button class="tab-btn active" data-target="scanner-sec">Scanner</button>
+                <button class="tab-btn" data-target="tagging-sec">Tagging</button>
+                <button class="tab-btn" data-target="review-sec">Identity Review</button>
+                <button class="tab-btn" data-target="search-sec">Search</button>
+            </nav>
+            <div id="ai-health" class="health-indicator status-ok">
+                AI ENGINE ONLINE
             </div>
-        </nav>
+        </header>
 
-        <!-- Main Content -->
+        <!-- Main Content Area -->
         <main class="content-area">
             
-            <!-- Scanner Section -->
-            <section id="scan-sec" class="page-section active glass-panel">
+            <!-- 1. Scanner Dashboard Section -->
+            <section id="scanner-sec" class="page-section active">
                 <h1>Library Scanner</h1>
-                <p>Enter the path to a folder on your drive to begin indexing photos.</p>
+                <p class="subtitle">System Control & Real-time Telemetry</p>
                 
-                <div class="input-group">
-                    <input type="text" id="scan-path" placeholder="e.g. D:\MyPhotos\Vietnam">
-                    <button id="start-scan-btn" class="primary-btn">Start Scanning</button>
+                <div class="dash-grid">
+                    <!-- Progress Card -->
+                    <div class="dash-card active-pulse" id="scan-card">
+                        <div class="card-title">
+                            <span>Index Completion</span>
+                            <span id="scan-status-text">IDLE</span>
+                        </div>
+                        <div class="stat-value"><span id="scanned-count">0</span><span class="stat-unit">Photos</span></div>
+                    </div>
+                    
+                    <!-- Throughput Card -->
+                    <div class="dash-card">
+                        <div class="card-title">Processing Status</div>
+                        <div class="progress-view">
+                            <div class="progress-container">
+                                <div id="scan-progress-bar" class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <p id="scan-phase" class="log-msg" style="margin-top: 5px; color: var(--yellow); font-size: 0.8rem;">Idle</p>
+                        </div>
+                        <div class="stat-value"><span id="tps-value">0.0</span><span class="stat-unit">TPS</span></div>
+                    </div>
+                    
+                    <!-- AI Confidence Card -->
+                    <div class="dash-card">
+                        <div class="card-title">AI Engine Health</div>
+                        <div class="stat-value"><span id="ai-score">0.98</span><span class="stat-unit">Conf</span></div>
+                    </div>
                 </div>
-                
-                <div class="status-box">
-                    <h3>Scanner Status</h3>
-                    <div id="status-indicator" class="idle">Idle</div>
-                    <p>Photos Scanned: <span id="scanned-count">0</span></p>
-                    <p>Faces Found: <span id="face-count">0</span></p>
+
+                <div class="kinetic-form">
+                    <div class="input-wrap">
+                        <input type="text" id="scan-path" placeholder="Enter Source Directory (e.g. D:\Photos\Tokyo)">
+                    </div>
+                    <button id="start-scan-btn" class="kinetic-btn">Initialize Scan</button>
+                </div>
+
+                <h3>System Telemetry Feed</h3>
+                <div id="telemetry-log" class="telemetry-feed">
+                    <!-- Real-time logs will appear here -->
+                    <div class="log-entry"><span class="log-time">[13:14:01]</span> <span class="log-msg">System initialized. Awaiting path input.</span></div>
                 </div>
             </section>
 
-            <!-- Tagging Section -->
-            <section id="tag-sec" class="page-section glass-panel">
+            <!-- 2. Tagging Section (Batch Support) -->
+            <section id="tagging-sec" class="page-section">
                 <h1>Tag Unknown Faces</h1>
-                <p>Help the AI by putting names to these faces.</p>
-                <div class="action-bar">
-                    <button id="refresh-faces-btn" class="secondary-btn">Refresh</button>
+                <p class="subtitle">Batch processing for identified clusters</p>
+                
+                <div class="kinetic-form">
+                    <button id="refresh-faces-btn" class="kinetic-btn secondary">Refresh Buffer</button>
+                    <button id="select-all-btn" class="kinetic-btn secondary">Select All</button>
                 </div>
-                <div id="faces-grid" class="image-grid">
-                    <!-- Faces loaded dynamically -->
+
+                <div id="faces-grid" class="pro-grid">
+                    <!-- Clustered faces loaded dynamically -->
                 </div>
             </section>
 
-            <!-- Search Section -->
-            <section id="search-sec" class="page-section glass-panel">
-                <h1>Search Library</h1>
-                <p>Search by person name or location tag.</p>
-                <div class="input-group">
-                    <input type="text" id="search-input" placeholder="Search... e.g., 'Alice' or 'Goa'">
-                    <button id="search-btn" class="primary-btn">Search</button>
+            <!-- 3. Identity Review Section -->
+            <section id="review-sec" class="page-section">
+                <h1>Identity Management</h1>
+                <p class="subtitle">Review and re-tag identified individuals</p>
+                
+                <!-- List View -->
+                <div id="identities-list" class="review-list">
+                    <!-- Identities loaded dynamically -->
                 </div>
-                <div id="search-results" class="gallery-grid">
+
+                <!-- Detail View (Initially Hidden) -->
+                <div id="review-detail" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+                        <h2 id="review-person-name">Person Name</h2>
+                        <button id="back-to-identities" class="kinetic-btn secondary">Back to Manifest</button>
+                    </div>
+                    <div id="cluster-faces-grid" class="pro-grid">
+                        <!-- Cluster thumbnails with 'Remove' buttons -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Search & Filter Section -->
+            <section id="search-sec" class="page-section">
+                <h1>Global Search</h1>
+                <p class="subtitle">AI-powered discovery across dimensions</p>
+                
+                <div class="filter-panel">
+                    <div class="filter-row">
+                        <div class="input-wrap">
+                            <label class="info-label">Keywords</label>
+                            <input type="text" id="search-input" placeholder="Search by name, object, or location...">
+                        </div>
+                        <div class="input-wrap" style="max-width: 200px;">
+                            <label class="info-label">From Date</label>
+                            <input type="date" id="date-start">
+                        </div>
+                        <div class="input-wrap" style="max-width: 200px;">
+                            <label class="info-label">To Date</label>
+                            <input type="date" id="date-end">
+                        </div>
+                        <button id="search-btn" class="kinetic-btn">Apply Filters</button>
+                    </div>
+                </div>
+
+                <div id="search-results" class="pro-gallery">
                     <!-- Results loaded dynamically -->
                 </div>
-                <div id="pagination-cnt" class="pagination-container">
-                    <!-- Dynamic buttons go here -->
-                </div>
+                
+                <div id="pagination" class="pagination-container" style="margin-top: 40px; text-align: center;"></div>
             </section>
 
         </main>
     </div>
-    
-    <!-- Modal for viewing full photo -->
-    <div id="photo-modal" class="modal">
-        <span class="close-modal">&times;</span>
-        <img class="modal-content" id="full-resolution-img">
-        <div id="caption"></div>
+
+    <!-- Floating Batch Action Bar -->
+    <div id="batch-bar" class="floating-bar">
+        <span id="selection-count">0 items selected</span>
+        <div class="input-wrap" style="min-width: 200px;">
+            <input type="text" id="batch-name" placeholder="Name this identity...">
+        </div>
+        <button id="batch-tag-btn" class="kinetic-btn">Assign Identity</button>
+        <button id="cancel-batch-btn" class="kinetic-btn secondary">Cancel</button>
+    </div>
+
+    <!-- Pro Modal Detail View -->
+    <div id="photo-modal" class="pro-modal">
+        <div class="modal-inner">
+            <img class="modal-img" id="full-img" src="">
+            <div class="modal-info">
+                <div class="info-box">
+                    <div class="info-label">File Path</div>
+                    <div class="info-value" id="meta-path">/path/to/img.jpg</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Capture Date</div>
+                    <div class="info-value" id="meta-date">2024-03-29</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Camera Model</div>
+                    <div class="info-value" id="meta-camera">Sony A7IV</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">AI Tags</div>
+                    <div class="info-value" id="meta-tags">Lion, Nature, Golden Hour</div>
+                </div>
+                <div style="margin-top: auto;">
+                    <button class="kinetic-btn secondary" id="close-modal-btn" style="width: 100%;">Close Terminal</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="/static/script.js"></script>

@@ -39,6 +39,20 @@ def check_models_health():
     status["all_ok"] = not (facenet_bad or retinaface_bad)
     return status
 
+def ensure_models_loaded():
+    """
+    Force-loads the AI models if they aren't already in memory.
+    DeepFace loads models on the first call to represent(), so we do a dummy run.
+    """
+    # Create a tiny 100x100 black image for the warm-up call
+    warmup_img = np.zeros((100, 100, 3), dtype=np.uint8)
+    try:
+        # We use a very high threshold/enforce_detection=False just to trigger the loader
+        DeepFace.represent(warmup_img, model_name="Facenet512", detector_backend="skip", enforce_detection=False)
+        print("[AI] Engine warmed up: Facenet512 loaded.")
+    except Exception as e:
+        print(f"[AI ALERT] Warm-up failed: {e}")
+
 def process_image(image_path, thumbnail_dir):
     scale = 1.0
     try:
