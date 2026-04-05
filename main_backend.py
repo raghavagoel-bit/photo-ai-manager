@@ -11,6 +11,8 @@ from database import (get_all_faces, update_face_person,
 from scanner import scan_directory
 from face_utils import check_models_health, match_face, compute_person_centroids
 
+# App version for health checks
+APP_VERSION = "1.6.0-reliability-shield"
 app = FastAPI()
 
 # Mount static folders
@@ -38,6 +40,22 @@ async def startup_event():
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/api/health")
+async def health_check():
+    """System health check and version verification."""
+    try:
+        conn = get_connection()
+        conn.close()
+        return {
+            "status": "ok",
+            "version": APP_VERSION,
+            "engine": "Facenet512",
+            "scene_ai": "MobileNetV3",
+            "db_connected": True
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 def run_scan_task(path: str):
     global scan_status
@@ -196,7 +214,7 @@ async def search_photos(query: str = "", page: int = 1, limit: int = 50):
     offset = (page - 1) * limit
     
     # NEW: Split query into multiple terms for AND search (e.g. "Kenya Lion")
-    terms = [t.strip() for t in query.replace(',', ' ').split() if t.strip()]
+    terms = [t.strip().lower() for t in query.replace(',', ' ').split() if t.strip()]
     
     if not terms:
         # Default: Show everything if no query
@@ -208,9 +226,12 @@ async def search_photos(query: str = "", page: int = 1, limit: int = 50):
         params = []
         for term in terms:
             t = f"%{term}%"
-            clauses.append("(pe.name LIKE ? OR p.location_tags LIKE ? OR p.file_path LIKE ? OR p.ai_tags LIKE ?)")
+            # Explicit LOWER() for case-insensitive keyword searches on all columns
+            clauses.append("(LOWER(pe.name) LIKE ? OR LOWER(p.location_tags) LIKE ? OR LOWER(p.file_path) LIKE ? OR LOWER(p.ai_tags) LIKE ?)")
             params.extend([t, t, t, t])
         where_clause = " AND ".join(clauses)
+
+    print(f"Executing search: query='{query}', terms={terms}") # Debug Logging
 
     # Step 1: Get total count
     c.execute(f'''

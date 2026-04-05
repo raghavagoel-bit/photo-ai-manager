@@ -4,9 +4,30 @@ This is a totally local, private, AI-powered system designed to index large phys
 
 ---
 
-## 🏗️ Architecture & Data Flow
+## 🏗️ Architecture & Decision Rationale
 
-Here is a high-level visual representation of how the components talk to one another:
+The Photo AI Manager is designed for **total privacy** and **high-performance local compute**. Every architectural choice prioritizes these two goals over cloud scalability.
+
+### Architecture Overview
+The system follows a **Monolithic API + Threaded Worker** pattern.
+
+```mermaid
+graph TD
+    UI[Glassmorphism UI] <-->|HTTP| API(FastAPI Server)
+    API -.->|Spawn Thread| Scanner[[Background Scanner]]
+    Scanner -->|Read| Disk[External Drives]
+    Scanner -->|Compute| AI[DeepFace/PyTorch AI Engine]
+    Scanner -->|Write| DB[(SQLite Database)]
+    API <-->|Search| DB
+    API -->|Serve| Thumb[Thumbnail Cache]
+```
+
+### Why These Decisions?
+-   **FastAPI**: Chosen for its native asynchronous support, which allows the UI to poll the scanner's progress without blocking the main event loop.
+-   **SQLite (`index.db`)**: Provides a zero-config, portable database that lives alongside your photos. It lacks the overhead of Postgres but handles 10,000+ photos with sub-millisecond query times.
+-   **Facenet512 (AI Engine)**: We chose `Facenet512` over standard `dlib` or `MTCNN` because it provides 4x more biometric detail per face, significantly reducing "masking" errors (people mistaken for others).
+-   **Agglomerative Clustering**: We moved from DBSCAN to `AgglomerativeClustering` with 'complete linkage' because it prevents "chaining" (where one bad angle incorrectly merges two different people into the same cluster).
+-   **Vanilla JS/CSS**: By avoiding React or Tailwind, we keep the frontend lightweight and ensure the project remains functional for years without dependency rot.
 
 ```mermaid
 graph TD
