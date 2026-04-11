@@ -23,11 +23,15 @@ def init_db():
             location_tags TEXT,
             ai_tags TEXT,
             date_taken TEXT,
+            latitude REAL,
+            longitude REAL,
             camera_make TEXT,
             camera_model TEXT,
             iso TEXT,
             aperture TEXT,
             focal_length TEXT,
+            phash TEXT,
+            thumbnail_path TEXT,
             scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -62,7 +66,11 @@ def init_db():
         "camera_model": "TEXT",
         "iso": "TEXT",
         "aperture": "TEXT",
-        "focal_length": "TEXT"
+        "focal_length": "TEXT",
+        "latitude": "REAL",
+        "longitude": "REAL",
+        "phash": "TEXT",
+        "thumbnail_path": "TEXT"
     }
     
     c.execute('PRAGMA table_info(photos)')
@@ -76,14 +84,41 @@ def init_db():
     conn.commit()
     conn.close()
 
-def insert_photo(file_path, location_tags, date_taken, ai_tags="", camera_make="", camera_model="", iso="", aperture="", focal_length=""):
+def get_photo_v3_status(file_path):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT id, phash, thumbnail_path FROM photos WHERE file_path = ?', (file_path,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "id": row['id'],
+        "is_complete": bool(row['phash'] and row['thumbnail_path']),
+        "phash": row['phash'],
+        "thumbnail_path": row['thumbnail_path']
+    }
+
+def update_photo_v3_data(photo_id, latitude, longitude, phash, thumbnail_path):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        UPDATE photos 
+        SET latitude = ?, longitude = ?, phash = ?, thumbnail_path = ?
+        WHERE id = ?
+    ''', (latitude, longitude, phash, thumbnail_path, photo_id))
+    conn.commit()
+    conn.close()
+
+def insert_photo(file_path, location_tags, date_taken, ai_tags="", camera_make="", camera_model="", iso="", aperture="", focal_length="", **kwargs):
     conn = get_connection()
     c = conn.cursor()
     try:
         c.execute('''
-            INSERT OR IGNORE INTO photos (file_path, location_tags, date_taken, ai_tags, camera_make, camera_model, iso, aperture, focal_length)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (file_path, location_tags, date_taken, ai_tags, camera_make, camera_model, iso, aperture, focal_length))
+            INSERT OR IGNORE INTO photos (file_path, location_tags, date_taken, ai_tags, camera_make, camera_model, iso, aperture, focal_length, latitude, longitude, phash, thumbnail_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (file_path, location_tags, date_taken, ai_tags, camera_make, camera_model, iso, aperture, focal_length,
+              kwargs.get('latitude'), kwargs.get('longitude'), kwargs.get('phash'), kwargs.get('thumbnail_path')))
         photo_id = c.lastrowid
         if not photo_id:
             c.execute('SELECT id FROM photos WHERE file_path = ?', (file_path,))

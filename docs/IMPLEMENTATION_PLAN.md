@@ -381,3 +381,55 @@ Searching "Kenya Lion" returned 0 results despite the AI backfiller having alrea
 ## Phase 11: V2 UI Redesign (⏳ Pending — awaiting Stitch MCP)
 MCP server must be added to the Antigravity MCP configuration before this phase can begin.
 Specifically focusing on a modernized "Premium Dark Mode" layout with optimized grid resizing.
+
+---
+
+## Phase 12: V3 Intelligence Layer & Massive Retrieval (✅ Completed)
+
+### Goal
+Resolve mapping and search regressions (Atlas sparsity and the 40-photo limit tag bottleneck) for large dynamic collections.
+
+### 12.1: The Deep Geometry & Tactical Retrieval Engine (V3.0)
+- **Problem**: Atlas was almost completely empty because photos lacked EXIF GPS. Searching for "Turkey" returned few photos because of unorganized folder structures.
+- **Solution**: Built `hydrate_metadata.py` to extract implicit tags from folder names ("Turkey" collection rescue) and propagate GPS tags using a narrow 30-minute clustering window.
+- **Result**: Fixed collection tagging, but GPS density was still low (only 133 pins).
+
+### 12.2: Massive Density & Unlimited Search (V3.1-ULTIMA)
+- **Problem**: 30-minute windows were too narrow for GPS propagation. Frontend infinite scroll was hardcoded to `limit=40`, breaking for collections like "Kenya" (3,000+ photos).
+- **Solution**: 
+    - **Frontend Unleashed**: Removed `limit=40`, standardized on `limit=100`, mapped dynamic pagination to `IntersectionObserver` infinite scrolling.
+    - **ULTIMA Hydrator**: Upgraded from temporal clusters to **Collection-Level GPS Mirroring**. Any single explicit GPS ping within a folder root anchors the entire collection directory.
+- **Result**: "Kenya" jumped from 129 GPS pins to 3,698 anchors.
+
+### 12.3: Atlas Cartography Fix (V3.2)
+- **Problem**: 3,698 anchors perfectly stacked at a single geometric centroid. To the human eye, the map still appeared "emptyish". Additionally, the "Italy" collection was missing because it contained 0 native GPS photos to use as a centroid.
+- **Solution**: 
+    - **Forward Geocoding**: Upgraded `hydrate_metadata.py` to recognize country names mapping to a lookup table `DEFAULT_COUNTRY_COORDS`. Rescued 558 Italy photos.
+    - **Geographic Jittering**: Added a dynamic `random.uniform(-0.005, 0.005)` delta to `/api/atlas` to simulate a ~500m "heat cloud" spread.
+    - **Marker Clustering**: Deployed `Leaflet.markercluster` to replace native `L.marker` pinning. Overlaps cleanly group into interactive nodes (e.g. `[3698]` bubbles) that smoothly shatter into individual inspectable photos on zoom.
+
+---
+**Status: ALL SYSTEMS OPERATIONAL (V3.2-STABLE)**
+
+---
+
+## Phase 13: Visual Geolocation Atlas Upgrade (✅ Completed)
+
+### Goal
+Implement a precision visual geolocation engine to identify specific landmarks and cities, upgrading generic country-level GPS anchors to high-precision coordinates.
+
+### 13.1: CLIP-Based Precision Engine
+- **Engine**: Deployed `visual_geocoder.py` using **OpenAI's CLIP-ViT-Base-Patch32**.
+- **Mechanism**: The engine compares photo content against a curated list of landmark textual descriptions ("anchors") within a specific country context.
+- **Anchors**: Defined in `data/anchors.json` for Italy, Turkey, Kenya, Tanzania, Maldives, and India.
+
+### 13.2: Pipeline Integration
+- **Hydration Upgraded**: Integrated Phase 6 (Visual Landmark Anchoring) into `hydrate_metadata.py`.
+- **Logic**: Photos previously anchored to generic country centroids are processed by CLIP. If a high-confidence match (threshold=0.75) is found, the photo is re-anchored to the specific landmark's coordinates.
+
+### 13.3: Interface Refinement
+- **Backend Fixes**: Resolved `search_photos` argument regression and enhanced `/api/atlas` to return `location_tags`.
+- **Map UI**: Enhanced Leaflet marker popups in `static/script.js` to display inferred landmark names.
+
+---
+**Status: ALL SYSTEMS OPERATIONAL (V3.3-CARTOGRAPHY)**

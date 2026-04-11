@@ -9,3 +9,12 @@ Pillow
 exifread
 numpy
 psutil
+imagehash
+opencv-python
+torch
+torchvision
+deepface
+python-dateutil
+scikit-learn
+reverse_geocoder
+transformers

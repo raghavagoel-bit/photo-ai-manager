@@ -143,10 +143,25 @@ def process_image(image_path, thumbnail_dir):
         except Exception as e:
             print(f"Error saving thumbnail for {image_path}: {e}")
             
-    if not faces:
-        print(f"AI: No faces detected in {image_path} (RetinaFace returned empty or invalid).")
-            
     return faces
+
+def generate_thumbnails(img_pil, thumbnail_dir):
+    """Generates a standard 600px 'medium' thumbnail for the full photo."""
+    try:
+        # Create a unique ID for the photo thumbnail
+        thumb_filename = f"full_{uuid.uuid4().hex}.jpg"
+        thumb_path = os.path.join(thumbnail_dir, thumb_filename)
+        
+        # We target 600px for the 'Medium' view used in the gallery
+        # This is a good balance between quality and 1TB library performance
+        img_copy = img_pil.copy()
+        img_copy.thumbnail((600, 600))
+        img_copy.save(thumb_path, "JPEG", quality=85)
+        
+        return thumb_filename
+    except Exception as e:
+        print(f"Error generating full thumbnail: {e}")
+        return ""
 
 def compute_person_centroids(known_faces):
     """

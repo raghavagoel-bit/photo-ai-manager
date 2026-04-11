@@ -6,8 +6,33 @@
     <title>Antigravity Photos V2 | Stealth Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <!-- Leaflet.js for Atlas Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <!-- Chart.js for Telemetry Gauges -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .page-section { display: none !important; }
+        .page-section.active { display: block !important; animation: sectionFadeIn 0.3s ease; }
+        @keyframes sectionFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+    <script>
+        window.switchTab = (targetId) => {
+            console.log("Global switchTab triggered:", targetId);
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
+            const activeBtn = document.querySelector(`.tab-btn[data-target="${targetId}"]`);
+            const activeSec = document.getElementById(targetId);
+            if (activeBtn) activeBtn.classList.add('active');
+            if (activeSec) activeSec.classList.add('active');
+            localStorage.setItem('activeTab_v2', targetId);
+            // Trigger domain-specific loads if ready
+            window.dispatchEvent(new CustomEvent('tabChange', { detail: { targetId } }));
+        };
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -17,10 +42,12 @@
                 <h2>ANTIGRAVITY <span>PHOTOS</span></h2>
             </div>
             <nav class="main-nav">
-                <button class="tab-btn active" data-target="scanner-sec">Scanner</button>
-                <button class="tab-btn" data-target="tagging-sec">Tagging</button>
-                <button class="tab-btn" data-target="review-sec">Identity Review</button>
-                <button class="tab-btn" data-target="search-sec">Search</button>
+                <button class="tab-btn active" data-target="scanner-sec" onclick="switchTab('scanner-sec')">Scanner</button>
+                <button class="tab-btn" data-target="tagging-sec" onclick="switchTab('tagging-sec')">Tagging</button>
+                <button class="tab-btn" data-target="review-sec" onclick="switchTab('review-sec')">Identity Review</button>
+                <button class="tab-btn" data-target="search-sec" onclick="switchTab('search-sec')">Search</button>
+                <button class="tab-btn" data-target="atlas-sec" onclick="switchTab('atlas-sec')">Atlas</button>
+                <button class="tab-btn" data-target="maintenance-sec" onclick="switchTab('maintenance-sec')">Maintenance</button>
             </nav>
             <div id="ai-health" class="health-indicator status-ok">
                 AI ENGINE ONLINE
@@ -120,6 +147,11 @@
                 <h1>Global Search</h1>
                 <p class="subtitle">AI-powered discovery across dimensions</p>
                 
+                <div id="tactical-cloud" class="tactical-cloud">
+                    <div class="cloud-label">Intelligence Manifest</div>
+                    <!-- Tags loaded dynamically -->
+                </div>
+
                 <div class="filter-panel">
                     <div class="filter-row">
                         <div class="input-wrap">
@@ -142,7 +174,28 @@
                     <!-- Results loaded dynamically -->
                 </div>
                 
-                <div id="pagination" class="pagination-container" style="margin-top: 40px; text-align: center;"></div>
+                <div id="infinite-scroll-trigger" style="height: 100px; margin-top: 20px;"></div>
+                <div id="infinite-spinner" class="log-msg" style="text-align: center; display: none;">Decrypting more tactical data...</div>
+            </section>
+
+            <!-- 5. Atlas (Map View) Section -->
+            <section id="atlas-sec" class="page-section">
+                <h1>Geospatial Operations</h1>
+                <p class="subtitle">Global photo distribution and trip history</p>
+                <div id="map" style="height: 600px; border: 2px solid var(--primary); border-radius: 8px; margin-top: 20px;"></div>
+                <div id="atlas-stats" class="log-msg" style="margin-top: 10px;">Initializing GPS satellite link...</div>
+            </section>
+
+            <!-- 6. Maintenance Dashboard -->
+            <section id="maintenance-sec" class="page-section">
+                <h1>Maintenance Hub</h1>
+                <p class="subtitle">Duplicate detection and library health</p>
+                <div class="kinetic-form">
+                    <button id="find-duplicates-btn" class="kinetic-btn">Scan for Near-Duplicates</button>
+                </div>
+                <div id="duplicates-container" class="duplicates-list">
+                    <p class="log-msg">Stand by for duplicate analysis results.</p>
+                </div>
             </section>
 
         </main>

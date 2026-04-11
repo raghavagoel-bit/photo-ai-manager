@@ -6,33 +6,29 @@ document.addEventListener('DOMContentLoaded', () => {
         isScanning: false,
         selectedFaces: new Set(), // For Batch Tagging
         currentSearchPage: 1,
-        totalSearchPages: 1
+        totalSearchPages: 1,
+        canLoadMore: true,
+        isLoadingMore: false,
+        map: null // Leaflet instance
     };
 
-    // --- Navigation Logic ---
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const sections = document.querySelectorAll('.page-section');
-
-    const switchTab = (targetId) => {
-        state.activeTab = targetId;
-        localStorage.setItem('activeTab_v2', targetId);
+    // Listen for Global Tab Changes
+    window.addEventListener('tabChange', (e) => {
+        const targetId = e.detail.targetId;
+        console.log("Domain loading triggered for:", targetId);
         
-        // UI Updates
-        tabBtns.forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-target') === targetId);
-        });
-        
-        sections.forEach(sec => {
-            sec.classList.toggle('active', sec.id === targetId);
-        });
-
-        // Context-specific loading
-        if (targetId === 'tagging-sec') loadUnknownFaces();
-        if (targetId === 'review-sec') loadIdentities();
-    };
-
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.getAttribute('data-target')));
+        try {
+            if (targetId === 'tagging-sec') loadUnknownFaces();
+            if (targetId === 'review-sec') loadIdentities();
+            if (targetId === 'atlas-sec') {
+                if (typeof L !== 'undefined') initAtlas();
+                else console.error("Leaflet.js not loaded.");
+            }
+            if (targetId === 'maintenance-sec') loadMaintenance();
+            if (targetId === 'search-sec') loadTagCloud();
+        } catch (err) {
+            console.error("Tab Initialization Failure:", err);
+        }
     });
 
     // --- Telemetry & Health ---
@@ -315,20 +311,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('back-to-identities').onclick = loadIdentities;
 
-    // --- Advanced Search & Filters ---
+    // --- Advanced Search & Infinite Scroll ---
     const resultsGrid = document.getElementById('search-results');
     const searchInput = document.getElementById('search-input');
     const dateStartInput = document.getElementById('date-start');
     const dateEndInput = document.getElementById('date-end');
+    const scrollTrigger = document.getElementById('infinite-scroll-trigger');
+    const scrollSpinner = document.getElementById('infinite-spinner');
 
-    const performSearch = async (page = 1) => {
+    const performSearch = async (page = 1, append = false) => {
+        if (!append) {
+            resultsGrid.innerHTML = '';
+            state.currentSearchPage = 1;
+            state.canLoadMore = true;
+            // Add skeleton items
+            for(let i=0; i<8; i++) {
+                const skel = document.createElement('div');
+                skel.className = 'gallery-item skeleton';
+                skel.style.height = `${200 + Math.random() * 200}px`;
+                resultsGrid.appendChild(skel);
+            }
+        }
+        
+        state.isLoadingMore = true;
+        if (scrollSpinner) scrollSpinner.style.display = 'block';
+
         const query = searchInput.value;
         const dStart = dateStartInput.value;
         const dEnd = dateEndInput.value;
-
-        resultsGrid.innerHTML = '<p class="log-msg">Running multi-dimensional query...</p>';
         
-        let url = `/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=40`;
+        let url = `/api/search?query=${encodeURIComponent(query)}&page=${page}&limit=100`;
         if (dStart) url += `&date_start=${dStart}`;
         if (dEnd) url += `&date_end=${dEnd}`;
 
@@ -336,56 +348,192 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(url);
             const data = await res.json();
             
+            if (!append) resultsGrid.innerHTML = '';
+
             if (!data.results || data.results.length === 0) {
-                resultsGrid.innerHTML = '<p class="log-msg">No temporal or tactical matches found.</p>';
+                if (!append) resultsGrid.innerHTML = '<p class="log-msg">No tactical matches found.</p>';
+                state.canLoadMore = false;
                 return;
             }
             
-            resultsGrid.innerHTML = data.results.map(photo => `
-                <div class="gallery-item" onclick="openModal(${photo.id})">
-                    <img src="/photo/${photo.id}" alt="TACTICAL DATA">
+            data.results.forEach(photo => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                // Use tiered thumbnail if available, else full photo
+                const imgSrc = photo.thumbnail_path ? `/thumbnails/${photo.thumbnail_path}` : `/photo/${photo.id}`;
+                item.innerHTML = `
+                    <img src="${imgSrc}" alt="Tactical Data" loading="lazy">
                     <div class="meta-overlay">
                         <div class="meta-text">${photo.date_taken || 'DATE: UNKNOWN'}</div>
                         <div class="meta-text">CAM: ${photo.camera_model || 'DEFAULT'}</div>
                     </div>
-                </div>
-            `).join('');
+                `;
+                item.onclick = () => openModal(photo.id);
+                resultsGrid.appendChild(item);
+            });
 
-            renderPagination(data.page, data.pages, data.total);
+            state.currentSearchPage = page;
+            state.totalSearchPages = data.pages;
+            if (page >= data.pages) state.canLoadMore = false;
+
         } catch (e) {
-            resultsGrid.innerHTML = '<p class="log-msg" style="color:red">Search relay failed.</p>';
+            if (!append) resultsGrid.innerHTML = '<p class="log-msg" style="color:red">Search relay failed.</p>';
+        } finally {
+            state.isLoadingMore = false;
+            if (scrollSpinner) scrollSpinner.style.display = 'none';
         }
     };
 
-    const renderPagination = (page, totalPages, totalResults) => {
-        const pagCnt = document.getElementById('pagination');
-        if (totalPages <= 1) { pagCnt.innerHTML = ''; return; }
-        
-        pagCnt.innerHTML = `
-            <button class="kinetic-btn secondary" ${page === 1 ? 'disabled' : ''} id="prev-btn">Prev</button>
-            <span style="font-family:'JetBrains Mono'; margin: 0 20px;">PAGE ${page} / ${totalPages}</span>
-            <button class="kinetic-btn secondary" ${page === totalPages ? 'disabled' : ''} id="next-btn">Next</button>
-        `;
-        
-        document.getElementById('prev-btn').onclick = () => performSearch(page - 1);
-        document.getElementById('next-btn').onclick = () => performSearch(page + 1);
-    };
+    // Intersection Observer for Infinite Scroll
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && state.canLoadMore && !state.isLoadingMore && state.activeTab === 'search-sec') {
+            performSearch(state.currentSearchPage + 1, true);
+        }
+    }, { threshold: 0.1 });
+
+    if (scrollTrigger) observer.observe(scrollTrigger);
 
     document.getElementById('search-btn').onclick = () => performSearch(1);
+    
+    // Trigger search on Enter key
+    searchInput.onkeypress = (e) => {
+        if (e.key === 'Enter') performSearch(1);
+    };
+
+    const loadTagCloud = async () => {
+        const cloud = document.getElementById('tactical-cloud');
+        if (!cloud) return;
+        
+        try {
+            const res = await fetch('/api/tags/top');
+            const tags = await res.json();
+            
+            // Clear but keep label
+            cloud.innerHTML = '<div class="cloud-label">Intelligence Manifest</div>';
+            
+            tags.forEach(item => {
+                const chip = document.createElement('div');
+                chip.className = 'tactical-tag';
+                chip.innerHTML = `${item.tag} <span class="tag-count">${item.count}</span>`;
+                chip.onclick = () => {
+                    searchInput.value = item.tag;
+                    performSearch(1);
+                };
+                cloud.appendChild(chip);
+            });
+        } catch (e) {
+            console.error("Cloud hydration failure", e);
+        }
+    };
+
+    // --- Atlas (Map View) Logic ---
+    const initAtlas = async () => {
+        if (state.map) return; // Already init
+
+        setTimeout(async () => {
+            state.map = L.map('map').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(state.map);
+
+            await loadAtlasData();
+        }, 300); // Small delay to ensure container is visible
+    };
+
+    const loadAtlasData = async () => {
+        try {
+            const res = await fetch('/api/atlas');
+            const data = await res.json();
+            
+            document.getElementById('atlas-stats').textContent = `Satellite link stable. Synchronized ${data.length} geographic vectors.`;
+
+            const markers = L.markerClusterGroup({
+                chunkedLoading: true,
+                maxClusterRadius: 50
+            });
+
+            data.forEach(p => {
+                const marker = L.marker([p.latitude, p.longitude]);
+                const color = p.is_inferred ? 'var(--accent)' : 'var(--primary)';
+                const statusStr = p.is_inferred ? `INFERRED (${p.location_tags || 'Temporal'})` : 'EXPLICIT (EXIF)';
+                
+                marker.bindPopup(`
+                    <div style="text-align:center">
+                        <img src="/thumbnails/${p.thumbnail_path}" class="atlas-popup-img">
+                        <div style="color:var(--primary); font-weight:bold; margin-top:5px; font-size:11px;">${p.location_tags || 'Unknown Sector'}</div>
+                        <div style="color:${color}; font-size:10px; margin-top:2px; opacity:0.8;">${statusStr}</div>
+                        <div style="font-size:10px; opacity:0.6">${p.date_taken}</div>
+                        <button class="kinetic-btn secondary" style="padding:4px 8px; font-size:10px; margin-top:5px;" onclick="openModal(${p.id})">Inspect</button>
+                    </div>
+                `);
+                markers.addLayer(marker);
+            });
+            
+            state.map.addLayer(markers);
+        } catch (e) {
+            document.getElementById('atlas-stats').textContent = "Satellite link failed. Interference detected.";
+        }
+    };
+
+    // --- Maintenance (Duplicates) Logic ---
+    const loadMaintenance = () => {
+        // Just UI prep
+    };
+
+    document.getElementById('find-duplicates-btn').addEventListener('click', async () => {
+        const container = document.getElementById('duplicates-container');
+        container.innerHTML = '<p class="log-msg">Calculating biometric distances and perceptual hashes...</p>';
+        
+        try {
+            const res = await fetch('/api/maintenance/duplicates');
+            const data = await res.json();
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p class="log-msg">No near-duplicates detected. Library integrity 100%.</p>';
+                return;
+            }
+            
+            container.innerHTML = data.map((group, idx) => `
+                <div class="duplicate-group">
+                    <h3>Group Delta-${idx} (${group.length} Similar Sectors)</h3>
+                    <div class="pro-grid">
+                        ${group.map(p => `
+                            <div class="id-card" onclick="openModal(${p.id})">
+                                <img src="/thumbnails/${p.thumbnail_path}">
+                                <div class="name-tag">${p.date_taken || 'Unknown Date'}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+            
+        } catch (e) {
+            container.innerHTML = '<p class="log-msg" style="color:red">Maintenance protocol failure.</p>';
+        }
+    });
 
     // --- Pro Modal Logic ---
     const modal = document.getElementById('photo-modal');
     window.openModal = async (photoId) => {
-        // In a real app, we might fetch detail data first, but searching already provides some.
-        // For V2, we'll just show the image and standard meta from the search result or a new detail API
-        document.getElementById('full-img').src = `/photo/${photoId}`;
+        const modalImg = document.getElementById('full-img');
+        modalImg.src = ''; // Clear old src
         modal.style.display = 'flex';
         
         // Fetch detailed meta for modal
         try {
-            const res = await fetch(`/api/search?query=id:${photoId}`); // Or a specific metadata endpoint
-            // For now, satisfy with placeholders or pull from gallery-item attributes
-        } catch(e) {}
+            const res = await fetch(`/api/search?query=id:${photoId}`); 
+            const data = await res.json();
+            if (data.results && data.results.length > 0) {
+                const p = data.results[0];
+                modalImg.src = p.thumbnail_path ? `/thumbnails/${p.thumbnail_path}` : `/photo/${p.id}`;
+                document.getElementById('meta-path').textContent = p.file_path;
+                document.getElementById('meta-date').textContent = p.date_taken || "Unknown";
+                document.getElementById('meta-camera').textContent = `${p.camera_model || "Unknown"} ${p.latitude ? `(${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)})` : "(No GPS)"}`;
+                document.getElementById('meta-tags').textContent = p.ai_tags || "None detected";
+            }
+        } catch(e) {
+            console.error("Modal sync failure", e);
+        }
     };
 
     document.getElementById('close-modal-btn').onclick = () => modal.style.display = 'none';

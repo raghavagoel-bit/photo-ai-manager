@@ -1,11 +1,30 @@
 import os
 import exifread
-from database import get_connection, insert_photo, insert_face
-from face_utils import process_image, ensure_models_loaded
-from scene_utils import detect_scene
+import imagehash
+from PIL import Image
+from database import get_connection, insert_photo, insert_face, get_photo_v3_status, update_photo_v3_data
+from face_utils import process_image, ensure_models_loaded, generate_thumbnails
 
 SUPPORTED_EXTS = {'.jpg', '.jpeg', '.png'}
 THUMBNAIL_DIR = os.path.join(os.path.dirname(__file__), 'data', 'thumbnails')
+
+def get_gps_decimal(tags):
+    """Helper to convert raw EXIF GPS tags to fractional decimal."""
+    def _to_float(ref, val):
+        if not val or not ref: return None
+        # EXIF format is usually [deg, min, sec]
+        d, m, s = [float(x.num) / float(x.den) for x in val.values]
+        decimal = d + (m / 60.0) + (s / 3600.0)
+        if ref.values in ['S', 'W']:
+            decimal = -decimal
+        return decimal
+
+    try:
+        lat = _to_float(tags.get('GPS GPSLatitudeRef'), tags.get('GPS GPSLatitude'))
+        lon = _to_float(tags.get('GPS GPSLongitudeRef'), tags.get('GPS GPSLongitude'))
+        return lat, lon
+    except Exception:
+        return None, None
 
 def get_exif_data(image_path):
     try:
@@ -19,27 +38,18 @@ def get_exif_data(image_path):
         aperture = str(tags.get('EXIF FNumber', ''))
         focal = str(tags.get('EXIF FocalLength', ''))
         
+        # Precise GPS
+        lat, lon = get_gps_decimal(tags)
+        
         # Simple Location Tag (Folder Name)
         dir_name = os.path.basename(os.path.dirname(image_path))
+        loc_tags = dir_name
         
-        # GPS Extraction (Simplified for now)
-        lat = str(tags.get('GPS GPSLatitude', ''))
-        lon = str(tags.get('GPS GPSLongitude', ''))
-        gps_tag = f"GPS:{lat},{lon}" if lat and lon else ""
-        
-        loc_tags = f"{dir_name};{gps_tag}".strip(';')
-        
-        return loc_tags, date_taken, make, model, iso, aperture, focal
+        return loc_tags, date_taken, make, model, iso, aperture, focal, lat, lon
     except Exception:
-        return os.path.basename(os.path.dirname(image_path)), "", "", "", "", "", ""
+        return os.path.basename(os.path.dirname(image_path)), "", "", "", "", "", "", None, None
 
-def is_scanned(file_path):
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute('SELECT id FROM photos WHERE file_path = ?', (file_path,))
-    row = c.fetchone()
-    conn.close()
-    return row is not None
+# is_scanned is deprecated in favor of get_photo_v3_status
 
 def scan_directory(root_dir, status_dict=None):
     os.makedirs(THUMBNAIL_DIR, exist_ok=True)
@@ -63,24 +73,42 @@ def scan_directory(root_dir, status_dict=None):
                 if status_dict is not None:
                     status_dict["phase"] = f"Analyzing: {file}"
                 
-                if is_scanned(full_path):
+                v3_status = get_photo_v3_status(full_path)
+                if v3_status and v3_status["is_complete"]:
                     continue
                 
-                loc_tags, date_taken, make, model, iso, aperture, focal = get_exif_data(full_path)
-                
                 # Dual AI: Face Recognition + Scene Awareness
-                print(f"Scanning [{scanned_count+1}]: {file} ({os.path.getsize(full_path)//1024//1024}MB)...")
+                action = "Hydrating" if v3_status else "Scanning"
+                print(f"{action} [{scanned_count+1}]: {file} ({os.path.getsize(full_path)//1024//1024}MB)...")
+
+                loc_tags, date_taken, make, model, iso, aperture, focal, lat, lon = get_exif_data(full_path)
                 
-                faces = process_image(full_path, THUMBNAIL_DIR)
-                ai_tags = detect_scene(full_path) # Identify Animals, Objects, Places
-                
-                if faces:
-                    photo_id = insert_photo(full_path, loc_tags, date_taken, ai_tags, make, model, iso, aperture, focal)
-                    for face in faces:
-                        insert_face(photo_id, face['box'], face['encoding'], face['thumbnail'])
-                        face_count += 1
+                # 1. Image Hashing (Duplicate Detection) + 2. Tiered Thumbnails
+                try:
+                    with Image.open(full_path) as img_pil:
+                        phash = str(imagehash.phash(img_pil))
+                        photo_thumb = generate_thumbnails(img_pil, THUMBNAIL_DIR)
+                except Exception as e:
+                    print(f"Hashing/Thumb error on {file}: {e}")
+                    phash = ""
+                    photo_thumb = ""
+
+                if v3_status:
+                    # Maintenance Hydration (Backfilling V3 columns)
+                    update_photo_v3_data(v3_status['id'], lat, lon, phash, photo_thumb)
                 else:
-                    insert_photo(full_path, loc_tags, date_taken, ai_tags, make, model, iso, aperture, focal)
+                    # Fresh Scan
+                    faces = process_image(full_path, THUMBNAIL_DIR)
+                    from scene_utils import detect_scene
+                    ai_tags = detect_scene(full_path) 
+                    
+                    photo_id = insert_photo(full_path, loc_tags, date_taken, ai_tags, make, model, iso, aperture, focal, 
+                                            latitude=lat, longitude=lon, phash=phash, thumbnail_path=photo_thumb)
+                    
+                    if faces:
+                        for face in faces:
+                            insert_face(photo_id, face['box'], face['encoding'], face['thumbnail'])
+                            face_count += 1
                     
                 scanned_count += 1
                 if status_dict is not None:

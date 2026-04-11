@@ -1,19 +1,18 @@
-# Photo Manager V2: Stealth Pro Suite
+# Photo Manager V3: Intelligence Manifest
+A high-performance, local-first AI photo management system with Deep Retrieval, Geocoded Atlas, and Precision Visual Anchoring.
 
-A high-performance, local-first AI photo management system with deep scene intelligence and identity accuracy control.
-
-## 🧬 Tactical Stack
-- **AI Engine**: RetinaFace (Detection) + FaceNet512 (Recognition) + PyTorch
+## 🧬 Tactical V3.3 Stack
+- **AI Core**: RetinaFace (Detection) + FaceNet512 (Recognition) + MobileNetV3 (Scene)
+- **Visual Geocoder**: OpenAI CLIP (Precision Landmark Anchoring)
+- **Intelligence Layer**: V3.3 ULTIMA Hydrator (Temporal GPS + Landmark Distillation)
 - **Backend**: FastAPI (Python 3.11) + SQLite3 (WAL Mode)
-- **Frontend**: Vanilla JS (ES6+) + CSS Grid/Flex (Stealth Pro Theme)
-- **Monitoring**: `psutil` + Chart.js for real-time AI hardware telemetry
+- **Discovery UI**: Stealth Pro V3.3 (Leaflet Atlas + Infinite Scroll)
 
-## ⚡ Key V2 Features
-- **Four-Tab Navigation**: Scanner, Tagging, Identity Review, Search.
-- **Identity Accuracy**: View clusters and detach incorrect face mappings with one click.
-- **Advanced Metadata**: Extract and filter by Camera Model, ISO, Aperture, and GPS (EXIF).
-- **Batch Tagging**: Multi-select cluster identification with kinetic selection UI.
-- **State Persistence**: Remembers your active tab and search context across refreshes.
+## ⚡ V3 Breakthrough Features
+- **Visual Landmark Precision**: CLIP-based recognition identifies specific landmarks (e.g., Colosseum, Taj Mahal) to upgrade generic country GPS into high-precision map coordinates.
+- **Geocoded Atlas**: Leaflet marker clustering handles large-scale libraries, shattering density bubbles into individual inspectable assets.
+- **Temporal V3 Propagation**: Automatically propagates GPS data to non-GPS photos in the same session.
+- **Path Rescue**: Brute-force indexing of folder names (e.g., "Turkey") even if images lack metadata.
 
 ## 🚀 Quick Start
 1.  **Clone & Install**:
@@ -21,8 +20,10 @@ A high-performance, local-first AI photo management system with deep scene intel
     pip install -r requirements.txt
     ```
 2.  **Launch**:
-    Run `run.bat` (includes 3s safety delay for server binding).
-3.  **UI**:
+    Run `run.bat` (Self-healing protocol clears port 8000 and restarts server).
+3.  **Hydrate Precision**:
+    Run `python tools/hydrate_metadata.py` to upgrade your library with visual landmarks.
+4.  **UI**:
     Access the tactical dashboard at `http://localhost:8000`.
 
 ## 🛠️ Operational Support
@@ -46,13 +47,14 @@ graph TD
     Scanner -->|Write| DB[(SQLite Database)]
     API <-->|Search| DB
     API -->|Serve| Thumb[Thumbnail Cache]
+    Hydrate[[Hydration Engine]] -->|CLIP / Geo| DB
 ```
 
 ### Why These Decisions?
 -   **FastAPI**: Chosen for its native asynchronous support, which allows the UI to poll the scanner's progress without blocking the main event loop.
 -   **SQLite (`index.db`)**: Provides a zero-config, portable database that lives alongside your photos. It lacks the overhead of Postgres but handles 10,000+ photos with sub-millisecond query times.
--   **Facenet512 (AI Engine)**: We chose `Facenet512` over standard `dlib` or `MTCNN` because it provides 4x more biometric detail per face, significantly reducing "masking" errors (people mistaken for others).
--   **Agglomerative Clustering**: We moved from DBSCAN to `AgglomerativeClustering` with 'complete linkage' because it prevents "chaining" (where one bad angle incorrectly merges two different people into the same cluster).
+-   **Facenet512 (AI Engine)**: We chose `Facenet512` over standard `dlib` or `MTCNN` because it provides 4x more biometric detail per face, significantly reducing "masking" errors.
+-   **CLIP Geocoder**: Deployed in V3.3 to bridge the gap between "Country Name" folder tags and physical map coordinates using zero-shot image-to-text matching.
 -   **Vanilla JS/CSS**: By avoiding React or Tailwind, we keep the frontend lightweight and ensure the project remains functional for years without dependency rot.
 
 ```mermaid

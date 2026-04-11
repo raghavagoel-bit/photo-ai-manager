@@ -7,12 +7,12 @@ import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 import psutil
 from database import (get_all_faces, update_face_person, untag_face,
-                     create_person, get_person_by_name, get_connection)
+                     create_person, get_person_by_name, get_connection, insert_face, insert_photo, update_photo_v3_data)
 from scanner import scan_directory
 from face_utils import check_models_health, match_face, compute_person_centroids
 
 # App version for health checks
-APP_VERSION = "1.6.0-reliability-shield"
+APP_VERSION = "1.6.1-cartography-v3.3"
 app = FastAPI()
 
 # Mount static folders
@@ -119,6 +119,51 @@ async def get_telemetry():
         "ai_score": ai_score,
         "tasks_per_second": round(scan_status["scanned_count"] / max(1, os.times()[4]), 2) if scan_status["is_scanning"] else 0
     }
+
+@app.get("/api/tags/top")
+async def get_top_tags(limit: int = 15):
+    """Aggregate top AI and Location tags for the Tactical Cloud."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT ai_tags, location_tags FROM photos")
+    rows = c.fetchall()
+    conn.close()
+    
+    noise = {'JPEG', 'JPG', 'none', 'None', '', 'none,', 'jpg', 'jpeg'}
+    geo_counts = {}
+    ai_counts = {}
+    
+    for r in rows:
+        ai = str(r['ai_tags'] or "").lower()
+        loc = str(r['location_tags'] or "").lower()
+        
+        # Split location tags (High Priority)
+        loc_parts = [p.strip() for p in loc.replace(',', ' ').split() if p.strip()]
+        for p in loc_parts:
+            if p not in noise and len(p) > 2:
+                name = p.capitalize()
+                geo_counts[name] = geo_counts.get(name, 0) + 1
+        
+        # Split AI tags (Standard Priority)
+        ai_parts = [p.strip() for p in ai.replace(',', ' ').split() if p.strip()]
+        for p in ai_parts:
+            if p not in noise and len(p) > 2:
+                name = p.capitalize()
+                ai_counts[name] = ai_counts.get(name, 0) + 1
+    
+    # Prioritize Geography tags in the top manifest
+    # Take top 10 Geo, top 5 AI
+    top_geo = sorted(geo_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    top_ai = sorted(ai_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    
+    combined = top_geo + top_ai
+    # Deduplicate and re-sort
+    final_counts = {}
+    for t, c in combined:
+        if t not in final_counts: final_counts[t] = c
+        
+    sorted_tags = sorted(final_counts.items(), key=lambda x: x[1], reverse=True)
+    return [{"tag": t, "count": c} for t, c in sorted_tags]
 
 @app.get("/api/identities")
 async def get_identities():
@@ -265,15 +310,131 @@ async def bulk_tag_faces(face_ids: str = Form(...), person_name: str = Form(...)
         
     return {"status": "success", "person_id": person_id, "tagged_count": len(ids_to_tag)}
 
+# --- V3 INTELLIGENCE ENDPOINTS ---
+
+@app.get("/api/atlas")
+async def get_atlas_data():
+    """Retrieve GPS data for Atlas view, including Temporal Inference."""
+    conn = get_connection()
+    c = conn.cursor()
+    
+    c.execute('SELECT id, latitude, longitude, thumbnail_path, date_taken, location_tags FROM photos WHERE latitude IS NOT NULL')
+    rows = c.fetchall()
+    explicit_gps = [dict(r) for r in rows]
+    
+    # Get all photos without GPS but with timestamps
+    c.execute('SELECT id, thumbnail_path, date_taken, location_tags FROM photos WHERE latitude IS NULL AND date_taken != ""')
+    no_gps = [dict(r) for r in c.fetchall()]
+    
+    conn.close()
+    
+    if not explicit_gps:
+        return []
+
+    # Simple Temporal Inference logic
+    # To keep it fast, we convert explicit GPS photos into a sorted list by time
+    import dateutil.parser as dparser
+    
+    def parse_time(t_str):
+        try:
+            return dparser.parse(t_str.replace(':', '-', 2)) # EXIF uses 2023:01:01
+        except:
+            return None
+
+    explicit_sorted = []
+    for p in explicit_gps:
+        dt = parse_time(p['date_taken'])
+        if dt: explicit_sorted.append((dt.timestamp(), p))
+    explicit_sorted.sort(key=lambda x: x[0])
+    
+    explicit_timestamps = [x[0] for x in explicit_sorted]
+    window = 3600
+    results = explicit_gps
+    
+    for p in no_gps:
+        dt = parse_time(p.get('date_taken', ''))
+        if not dt: continue
+        ts = dt.timestamp()
+        
+        # Find closest match using binary search on timestamps
+        import bisect
+        idx = bisect.bisect_left(explicit_timestamps, ts)
+        
+        best_match = None
+        min_diff = window + 1
+        
+        # Check neighbors
+        for i in [idx - 1, idx]:
+            if 0 <= i < len(explicit_sorted):
+                cand_ts, cand_photo = explicit_sorted[i]
+                diff = abs(ts - cand_ts)
+                if diff < min_diff:
+                    min_diff = diff
+                    best_match = cand_photo
+
+        if best_match:
+            results.append({
+                "id": p.get("id"),
+                "thumbnail_path": p.get("thumbnail_path"),
+                "latitude": best_match.get("latitude"),
+                "longitude": best_match.get("longitude"),
+                "location_tags": p.get("location_tags"),
+                "is_inferred": True,
+                "date_taken": p.get("date_taken")
+            })
+
+    import random
+    for r in results:
+        r["latitude"] = float(r["latitude"]) + random.uniform(-0.005, 0.005)
+        r["longitude"] = float(r["longitude"]) + random.uniform(-0.005, 0.005)
+            
+    return results
+
+@app.get("/api/maintenance/duplicates")
+async def get_duplicates(threshold: int = 8):
+    """Detect Near-Duplicates using Hamming distance on pHash."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT id, file_path, phash, thumbnail_path, date_taken FROM photos WHERE phash IS NOT NULL AND phash != ""')
+    rows = c.fetchall()
+    conn.close()
+    
+    photos = [dict(r) for r in rows]
+    if len(photos) < 2:
+        return []
+
+    # Group by similarity
+    # phash is a hex string (usually 16 chars for 64-bit)
+    def hamming_distance(h1, h2):
+        # Convert hex to int
+        i1 = int(h1, 16)
+        i2 = int(h2, 16)
+        return bin(i1 ^ i2).count('1')
+
+    duplicates = []
+    processed = set()
+    
+    for i in range(len(photos)):
+        if photos[i]['id'] in processed: continue
+        
+        group = [photos[i]]
+        for j in range(i + 1, len(photos)):
+            if photos[j]['id'] in processed: continue
+            
+            dist = hamming_distance(photos[i]['phash'], photos[j]['phash'])
+            if dist <= threshold:
+                group.append(photos[j])
+                processed.add(photos[j]['id'])
+        
+        if len(group) > 1:
+            duplicates.append(group)
+            processed.add(photos[i]['id'])
+            
+    return duplicates
+
+
 @app.get("/api/search")
-async def search_photos(
-    query: str = "", 
-    page: int = 1, 
-    limit: int = 50, 
-    date_start: str = None, 
-    date_end: str = None, 
-    camera: str = None
-):
+async def search_photos(query: str = "", date_start: str = "", date_end: str = "", camera: str = "", page: int = 1, limit: int = 100):
     conn = get_connection()
     c = conn.cursor()
     
@@ -315,7 +476,7 @@ async def search_photos(
 
     # Step 2: Get paginated results
     c.execute(f'''
-        SELECT DISTINCT p.id, p.file_path, p.location_tags, p.ai_tags, p.date_taken, p.camera_model
+        SELECT DISTINCT p.id, p.file_path, p.location_tags, p.ai_tags, p.date_taken, p.camera_model, p.thumbnail_path, p.latitude, p.longitude
         FROM photos p
         LEFT JOIN faces f ON p.id = f.photo_id
         LEFT JOIN people pe ON f.person_id = pe.id
