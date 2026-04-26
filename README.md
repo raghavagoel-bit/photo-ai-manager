@@ -1,18 +1,20 @@
-# Photo Manager V3: Intelligence Manifest
-A high-performance, local-first AI photo management system with Deep Retrieval, Geocoded Atlas, and Precision Visual Anchoring.
+# Photo Manager V3.4: Intelligence Manifest
+A high-performance, local-first AI photo management system with Deep Retrieval, Geocoded Atlas, Vision LLM Inference, and Precision Visual Anchoring.
 
-## 🧬 Tactical V3.3 Stack
+## 🧬 Tactical V3.4 Stack
 - **AI Core**: RetinaFace (Detection) + FaceNet512 (Recognition) + MobileNetV3 (Scene)
 - **Visual Geocoder**: OpenAI CLIP (Precision Landmark Anchoring)
-- **Intelligence Layer**: V3.3 ULTIMA Hydrator (Temporal GPS + Landmark Distillation)
+- **Vision LLM Geocoder**: Local Llama-3.2-Vision / Qwen2.5-VL via Ollama
+- **Intelligence Layer**: V3.4 ULTIMA Hydrator (Temporal GPS, Landmark Distillation, Deductive Geo-Inference)
 - **Backend**: FastAPI (Python 3.11) + SQLite3 (WAL Mode)
-- **Discovery UI**: Stealth Pro V3.3 (Leaflet Atlas + Infinite Scroll)
+- **Discovery UI**: Stealth Pro V3.4 (Leaflet Atlas + Infinite Scroll + Duplicate Pruning)
 
-## ⚡ V3 Breakthrough Features
+## ⚡ V3.4 Breakthrough Features
+- **Vision LLM Deductive Geocoding (NEW)**: Memory-safe local LLM inference (downsampled to 1280px) to deduce locations from signs, language, and architecture for photos lacking GPS.
+- **Duplicate Detection & Pruning (NEW)**: Perceptual hashing (`phash`) groups near-duplicates, allowing you to bulk-prune redundant files directly from the UI.
 - **Visual Landmark Precision**: CLIP-based recognition identifies specific landmarks (e.g., Colosseum, Taj Mahal) to upgrade generic country GPS into high-precision map coordinates.
 - **Geocoded Atlas**: Leaflet marker clustering handles large-scale libraries, shattering density bubbles into individual inspectable assets.
-- **Temporal V3 Propagation**: Automatically propagates GPS data to non-GPS photos in the same session.
-- **Path Rescue**: Brute-force indexing of folder names (e.g., "Turkey") even if images lack metadata.
+- **Temporal Propagation**: Automatically propagates GPS data to non-GPS photos in the same session.
 
 ## 🚀 Quick Start
 1.  **Clone & Install**:
@@ -118,28 +120,19 @@ graph TD
 ### 1. `main_backend.py` (The V2 Hub)
 Runs the `FastAPI` server. It supports:
 - **High-Density Telemetry**: CPU, RAM, and AI Health stats via `psutil`.
-- **# V2 Infrastructure & Identity Expansion
-
-This plan is now focused on final polish and future expansions. All core V2 features and bug fixes have been moved to the [Bug Fixes Log](file:///c:/Raghava/Antigravity/photo_manager/docs/bug_fixes.md).
-
-## Completed Milestones (Stealth Pro Release)
-- ✅ **Deep stack migration**: RetinaFace + FaceNet512.
-- ✅ **UI Overhaul**: Horizontal tabbed navigation (Black/Red/Yellow).
-- ✅ **Telemetry Hub**: Integrated `psutil` for AI hardware monitoring.
-- ✅ **Identity Accuracy**: Built cluster review and untagging logic.
-- ✅ **Schema Bridge**: Auto-v1-to-v2 database migration.
-
-## Future Tactical Goals
-- [ ] Implement HEIC/HEIF support for mobile-centric libraries.
-- [ ] Add Map View integration for GPS-tagged photos.
-- [ ] Build a "Similarity" search (reverse image lookup).
 - **Advanced Search**: Multi-dimensional filtering by **Date Range**, **Camera Model**, and **GPS Location**.
+- **Duplicate Management**: Identifies and clusters near-duplicate files using `phash`, exposing endpoints for disk-level pruning.
 
 ### 2. `scanner.py` (The Precision Engine)
 Upgraded indexing lifter:
 - **EXIF Extraction**: Now extracts GPS (Lat/Long), Device Make/Model, and technical ISO/Aperture settings.
 - **Fingerprinting**: Generates and stores 512-d biometric vectors.
 - **Scene Awareness**: Runs the 1,000-class object classifier to tag 'Lions', 'Dogs', and 'Places'.
+
+### 3. `tools/hydrate_metadata.py` & `tools/vision_llm_geocoder.py`
+The intelligence engines run separately to ensure the API never blocks.
+- **Phase 6 (CLIP)**: Matches visual landmarks.
+- **Phase 7 (Ollama)**: Uses local Vision LLMs to contextually deduce locations from text and architecture.
 
 ### 3. `templates/` & `static/`
 A complete UI redesign following the **Stealth Pro** design system:
@@ -149,7 +142,46 @@ A complete UI redesign following the **Stealth Pro** design system:
 
 ---
 
-## ⚙️ Running the Project
+## ⚙️ Running the Project / GitHub Setup Guide
 
-1. **Requirements**: `pip install -r requirements.txt`
-2. **Execution**: Always use **`run.bat`** on Windows. This ensures `PYTHONUTF8=1` is set, preventing console crashes caused by emojis in AI libraries.
+If you are cloning this from GitHub, follow these instructions to stand up your own local, privacy-first photo manager:
+
+### Prerequisites
+1. **Python 3.10+**: Ensure Python is installed.
+2. **Ollama**: (Optional but Recommended) Install [Ollama](https://ollama.com/) locally to enable the Vision Geocoder. Pull a vision model: `ollama run llama3.2-vision`.
+
+### Installation
+1. **Clone the repository**:
+    ```bash
+    git clone https://github.com/yourusername/photo_manager.git
+    cd photo_manager
+    ```
+2. **Create a Virtual Environment** (Highly Recommended):
+    ```bash
+    python -m venv .venv
+    # Windows
+    .venv\Scripts\activate
+    # Linux/Mac
+    source .venv/bin/activate
+    ```
+3. **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+### Execution
+1. **Start the Core API**:
+   Always use **`run.bat`** on Windows. This ensures `PYTHONUTF8=1` is set, preventing console crashes caused by emojis in AI libraries. On Mac/Linux, run:
+   ```bash
+   PYTHONUTF8=1 uvicorn main_backend:app --host 0.0.0.0 --port 8000
+   ```
+2. **Access the Dashboard**:
+   Open `http://localhost:8000` in your browser.
+3. **Scan Your Photos**:
+   In the Scanner tab, input the absolute path to your photo directory (e.g., `D:\Photos\2023`) and click "Initialize Scan".
+4. **Hydrate Intelligence (Post-Scan)**:
+   Once the basic scan is done, run the intelligence pipeline in a separate terminal:
+   ```bash
+   python tools/hydrate_metadata.py
+   ```
+   This will run the CLIP landmark anchoring and the Ollama Vision LLM geocoding pipeline.

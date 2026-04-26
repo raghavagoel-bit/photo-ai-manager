@@ -1,4 +1,6 @@
 from fastapi import FastAPI, BackgroundTasks, Request, Depends, Form
+from pydantic import BaseModel
+from typing import List
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -431,6 +433,47 @@ async def get_duplicates(threshold: int = 8):
             processed.add(photos[i]['id'])
             
     return duplicates
+
+class PruneRequest(BaseModel):
+    photo_ids: List[int]
+
+@app.post("/api/duplicates/prune")
+async def prune_duplicates(request: PruneRequest):
+    """Deletes flagged duplicate photos from database and disk."""
+    conn = get_connection()
+    c = conn.cursor()
+    
+    deleted_count = 0
+    errors = []
+    
+    for pid in request.photo_ids:
+        c.execute("SELECT file_path, thumbnail_path FROM photos WHERE id = ?", (pid,))
+        row = c.fetchone()
+        if not row:
+            continue
+            
+        file_path = row['file_path']
+        thumb_path = row['thumbnail_path']
+        
+        # 1. Delete from faces table
+        c.execute("DELETE FROM faces WHERE photo_id = ?", (pid,))
+        # 2. Delete from photos table
+        c.execute("DELETE FROM photos WHERE id = ?", (pid,))
+        
+        # 3. Delete from disk
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            if thumb_path and os.path.exists(thumb_path):
+                os.remove(thumb_path)
+            deleted_count += 1
+        except Exception as e:
+            errors.append(f"Failed to delete {file_path}: {e}")
+            
+    conn.commit()
+    conn.close()
+    
+    return {"status": "success", "deleted_count": deleted_count, "errors": errors}
 
 
 @app.get("/api/search")

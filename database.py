@@ -209,5 +209,35 @@ def get_all_faces(has_person=None):
         faces.append(face)
     return faces
 
+def get_duplicate_clusters():
+    conn = get_connection()
+    c = conn.cursor()
+    # Group photos by phash, but only where phash is not null/empty and count > 1
+    c.execute('''
+        SELECT phash, GROUP_CONCAT(id) as photo_ids 
+        FROM photos 
+        WHERE phash IS NOT NULL AND phash != '' 
+        GROUP BY phash 
+        HAVING COUNT(id) > 1
+    ''')
+    rows = c.fetchall()
+    
+    clusters = []
+    for r in rows:
+        photo_ids = [int(pid) for pid in r['photo_ids'].split(',')]
+        
+        # Fetch the actual photo details for these IDs
+        placeholders = ','.join(['?'] * len(photo_ids))
+        c.execute(f'SELECT id, file_path, date_taken, thumbnail_path FROM photos WHERE id IN ({placeholders})', photo_ids)
+        photos_in_cluster = [dict(p) for p in c.fetchall()]
+        
+        clusters.append({
+            'phash': r['phash'],
+            'photos': photos_in_cluster
+        })
+        
+    conn.close()
+    return clusters
+
 # Initialize DB when the module is imported
 init_db()

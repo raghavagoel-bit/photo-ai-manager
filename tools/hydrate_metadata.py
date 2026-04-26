@@ -179,7 +179,67 @@ def hydrate():
             p['inferred_lon'] = lon
             p['final_tags'] = f"{name}, {p['final_tags']}"
             visual_anchors_found += 1
+            p['v_upgraded'] = True
             print(f"   [MATCH] Photo {p['id']} -> {name} ({conf:.2f})")
+        else:
+            p['v_upgraded'] = False
+
+    # Phase 7: Vision LLM Deductive Geocoding (V3.4)
+    print("\n[Phase 7] Vision LLM Deductive Geocoding (V3.4)...")
+    from vision_llm_geocoder import deduce_location_from_images
+    import random
+    import requests
+    llm_upgraded_count = 0
+    
+    # 1. Filter out photos that have precise GPS (not inferred) or were upgraded by CLIP
+    llm_candidates = [p for p in candidates if not p.get('v_upgraded')]
+    
+    # 2. Group by folder
+    llm_folders = {}
+    for p in llm_candidates:
+        root = get_collection_root(p['file_path'])
+        if root not in llm_folders:
+            llm_folders[root] = []
+        llm_folders[root].append(p)
+        
+    for root, root_photos in llm_folders.items():
+        print(f"   Analyzing folder for LLM cues: {root} ({len(root_photos)} photos)")
+        # 3. Sample 3-5 images
+        sample_size = min(len(root_photos), 4)
+        samples = random.sample(root_photos, sample_size)
+        sample_paths = [s['file_path'] for s in samples]
+        
+        country_hint = root_photos[0].get('v_country_match', 'Unknown Location')
+        
+        # 4. Query LLM
+        llm_result = deduce_location_from_images(sample_paths, country_hint)
+        if llm_result and llm_result.get('confidence') == 'high' and llm_result.get('city_or_region'):
+            deduced_loc = llm_result['city_or_region']
+            reasoning = llm_result.get('reasoning', '')
+            print(f"   [LLM SUCCESS] Deduced Location: {deduced_loc} (Reasoning: {reasoning})")
+            
+            # 5. Geocode using Nominatim API (OpenStreetMap)
+            try:
+                osm_url = f"https://nominatim.openstreetmap.org/search?q={deduced_loc}&format=json&limit=1"
+                headers = {'User-Agent': 'Antigravity/PhotoManagerV3.4'}
+                resp = requests.get(osm_url, headers=headers).json()
+                if resp:
+                    new_lat = float(resp[0]['lat'])
+                    new_lon = float(resp[0]['lon'])
+                    
+                    # Apply to all photos in this folder
+                    for p in root_photos:
+                        p['inferred_lat'] = new_lat
+                        p['inferred_lon'] = new_lon
+                        p['final_tags'] = f"{deduced_loc}, {p['final_tags']}"
+                        llm_upgraded_count += 1
+                    print(f"      -> Mapped {deduced_loc} to ({new_lat}, {new_lon}). Applied to {len(root_photos)} photos.")
+                else:
+                    print(f"      -> Failed to map {deduced_loc} to coordinates.")
+            except Exception as e:
+                print(f"      -> Geocoding error: {e}")
+        else:
+            print(f"   [LLM NO MATCH] Could not deduce a precise location with high confidence.")
 
     # Step 8: Final - Database Write
     print(f"\n[Final] Global Database Update...")
@@ -196,9 +256,10 @@ def hydrate():
     conn.commit()
     conn.close()
     
-    print(f"\n[SUCCESS] V3.3-CARTOGRAPHY HYDRATION COMPLETE.")
+    print(f"\n[SUCCESS] V3.4-CARTOGRAPHY HYDRATION COMPLETE.")
     print(f"   GPS Sync: {mirrored_count} photos anchored to collection roots.")
-    print(f"   Visual Anchors: {visual_anchors_found} photos upgraded to precision landmarks.")
+    print(f"   Visual Anchors: {visual_anchors_found} photos upgraded to precision landmarks (CLIP).")
+    print(f"   LLM Geocoding: {llm_upgraded_count} photos upgraded via Vision LLM.")
     print(f"   Tag Sync: {folder_rescued} collection-level tags restored.")
 
 if __name__ == "__main__":

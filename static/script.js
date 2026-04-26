@@ -493,12 +493,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            container.innerHTML = data.map((group, idx) => `
-                <div class="duplicate-group">
+            container.innerHTML = `
+                <div class="kinetic-form" style="margin-bottom: 20px;">
+                    <button id="prune-duplicates-btn" class="kinetic-btn" style="background-color: var(--accent); border-color: var(--accent);">Prune Selected</button>
+                </div>
+            ` + data.map((group, idx) => `
+                <div class="duplicate-group" style="margin-bottom: 30px; border: 1px solid var(--primary); padding: 15px;">
                     <h3>Group Delta-${idx} (${group.length} Similar Sectors)</h3>
                     <div class="pro-grid">
                         ${group.map(p => `
-                            <div class="id-card" onclick="openModal(${p.id})">
+                            <div class="id-card duplicate-card" data-id="${p.id}" onclick="this.classList.toggle('selected')">
+                                <div class="sel-tick">✔</div>
                                 <img src="/thumbnails/${p.thumbnail_path}">
                                 <div class="name-tag">${p.date_taken || 'Unknown Date'}</div>
                             </div>
@@ -506,6 +511,32 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `).join('');
+            
+            // Add Prune handler
+            document.getElementById('prune-duplicates-btn').addEventListener('click', async () => {
+                const selected = document.querySelectorAll('.duplicate-card.selected');
+                if (selected.length === 0) return alert("Select at least one duplicate to prune.");
+                
+                if (!confirm(`Are you sure you want to permanently delete ${selected.length} photos?`)) return;
+                
+                const ids = Array.from(selected).map(el => parseInt(el.dataset.id));
+                try {
+                    const pruneRes = await fetch('/api/duplicates/prune', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ photo_ids: ids })
+                    });
+                    const result = await pruneRes.json();
+                    if (result.status === 'success') {
+                        addLog(`Pruned ${result.deleted_count} duplicate photos.`);
+                        document.getElementById('find-duplicates-btn').click(); // Refresh
+                    } else {
+                        alert("Error pruning duplicates.");
+                    }
+                } catch (e) {
+                    alert("Network error while pruning.");
+                }
+            });
             
         } catch (e) {
             container.innerHTML = '<p class="log-msg" style="color:red">Maintenance protocol failure.</p>';

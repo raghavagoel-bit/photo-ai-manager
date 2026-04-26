@@ -28,4 +28,30 @@ This document tracks upcoming features, optimizations, and technical debt for th
 - Implement native support for Apple's HEIC format to support mobile-heavy libraries.
 
 ---
-*Last Updated: 2026-04-11 (V3.3 Cartography)*
+
+## 🧠 AI Intelligence & Vision (V3.4)
+
+### 5. Two-Pass Vision LLM Geocoder
+**Impact**: High | **Effort**: Medium
+- **Concept**: Fallback geocoding for photos without GPS or iconic CLIP matches.
+- **Implementation**: Send low-confidence photos to a local Ollama Vision LLM (e.g., Qwen2.5-VL or Llama-3.2-Vision). Perform background OCR (reading street signs/menus) and zero-shot geographic deduction to hydrate the database.
+
+### 6. Reverse Image / Similarity Search
+**Impact**: High | **Effort**: Low
+- **Concept**: "Find photos visually similar to this one" without keyword reliance.
+- **Implementation**: Run vector cosine similarity search against the already stored 512-d FaceNet or CLIP embeddings in the SQLite database.
+
+### 7. Duplicate Detection & Pruning
+**Impact**: High | **Effort**: Low
+- **Concept**: Identify and clear exact or near-duplicates (e.g., burst shots) to save disk space.
+- **Implementation**: Use perceptual hashing (pHash) or existing AI embeddings (e.g., >0.99 cosine similarity + temporal proximity < 5 seconds) to cluster duplicates for review.
+
+## 🗃️ Library Management
+
+### 8. Bulk Metadata & Tag Management
+**Impact**: Medium | **Effort**: High
+- **Concept**: Correct AI mistakes across multiple photos simultaneously.
+- **Implementation**: Add a multi-select mode to the Stealth UI. Create API endpoints for batch overrides of tags, GPS coordinates, or timestamps.
+
+---
+*Last Updated: 2026-04-23 (Immich Evaluation & Vision LLM Integration)*
