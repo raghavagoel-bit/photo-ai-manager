@@ -9,7 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
         totalSearchPages: 1,
         canLoadMore: true,
         isLoadingMore: false,
-        map: null // Leaflet instance
+        map: null, // Leaflet instance
+        atlasData: [],
+        atlasMode: 'cluster',
+        clusterLayer: null,
+        heatLayer: null
     };
 
     // Listen for Global Tab Changes
@@ -440,36 +444,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300); // Small delay to ensure container is visible
     };
 
+    const renderAtlasMode = () => {
+        if (state.clusterLayer) state.map.removeLayer(state.clusterLayer);
+        if (state.heatLayer) state.map.removeLayer(state.heatLayer);
+
+        if (state.atlasMode === 'cluster') {
+            if (!state.clusterLayer) {
+                state.clusterLayer = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50 });
+                state.atlasData.forEach(p => {
+                    const marker = L.marker([p.latitude, p.longitude]);
+                    const color = p.is_inferred ? 'var(--accent)' : 'var(--primary)';
+                    const statusStr = p.is_inferred ? `INFERRED (${p.location_tags || 'Temporal'})` : 'EXPLICIT (EXIF)';
+                    marker.bindPopup(`
+                        <div style="text-align:center">
+                            <img src="/thumbnails/${p.thumbnail_path}" class="atlas-popup-img">
+                            <div style="color:var(--primary); font-weight:bold; margin-top:5px; font-size:11px;">${p.location_tags || 'Unknown Sector'}</div>
+                            <div style="color:${color}; font-size:10px; margin-top:2px; opacity:0.8;">${statusStr}</div>
+                            <div style="font-size:10px; opacity:0.6">${p.date_taken}</div>
+                            <button class="kinetic-btn secondary" style="padding:4px 8px; font-size:10px; margin-top:5px;" onclick="openModal(${p.id})">Inspect</button>
+                        </div>
+                    `);
+                    state.clusterLayer.addLayer(marker);
+                });
+            }
+            state.map.addLayer(state.clusterLayer);
+        } else if (state.atlasMode === 'heat') {
+            if (!state.heatLayer) {
+                const heatData = state.atlasData.map(p => [p.latitude, p.longitude, 1]); // Intensity 1
+                state.heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 10 });
+            }
+            state.map.addLayer(state.heatLayer);
+        }
+    };
+
+    document.getElementById('atlas-mode-cluster')?.addEventListener('click', (e) => {
+        state.atlasMode = 'cluster';
+        e.target.classList.remove('secondary');
+        document.getElementById('atlas-mode-heat').classList.add('secondary');
+        renderAtlasMode();
+    });
+
+    document.getElementById('atlas-mode-heat')?.addEventListener('click', (e) => {
+        state.atlasMode = 'heat';
+        e.target.classList.remove('secondary');
+        document.getElementById('atlas-mode-cluster').classList.add('secondary');
+        renderAtlasMode();
+    });
+
     const loadAtlasData = async () => {
         try {
             const res = await fetch('/api/atlas');
-            const data = await res.json();
+            state.atlasData = await res.json();
             
-            document.getElementById('atlas-stats').textContent = `Satellite link stable. Synchronized ${data.length} geographic vectors.`;
-
-            const markers = L.markerClusterGroup({
-                chunkedLoading: true,
-                maxClusterRadius: 50
-            });
-
-            data.forEach(p => {
-                const marker = L.marker([p.latitude, p.longitude]);
-                const color = p.is_inferred ? 'var(--accent)' : 'var(--primary)';
-                const statusStr = p.is_inferred ? `INFERRED (${p.location_tags || 'Temporal'})` : 'EXPLICIT (EXIF)';
-                
-                marker.bindPopup(`
-                    <div style="text-align:center">
-                        <img src="/thumbnails/${p.thumbnail_path}" class="atlas-popup-img">
-                        <div style="color:var(--primary); font-weight:bold; margin-top:5px; font-size:11px;">${p.location_tags || 'Unknown Sector'}</div>
-                        <div style="color:${color}; font-size:10px; margin-top:2px; opacity:0.8;">${statusStr}</div>
-                        <div style="font-size:10px; opacity:0.6">${p.date_taken}</div>
-                        <button class="kinetic-btn secondary" style="padding:4px 8px; font-size:10px; margin-top:5px;" onclick="openModal(${p.id})">Inspect</button>
-                    </div>
-                `);
-                markers.addLayer(marker);
-            });
-            
-            state.map.addLayer(markers);
+            document.getElementById('atlas-stats').textContent = `Satellite link stable. Synchronized ${state.atlasData.length} geographic vectors.`;
+            renderAtlasMode();
         } catch (e) {
             document.getElementById('atlas-stats').textContent = "Satellite link failed. Interference detected.";
         }

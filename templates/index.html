@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="/static/leaflet-heat.js"></script>
     <!-- Chart.js for Telemetry Gauges -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -182,6 +183,10 @@
             <section id="atlas-sec" class="page-section">
                 <h1>Geospatial Operations</h1>
                 <p class="subtitle">Global photo distribution and trip history</p>
+                <div class="kinetic-form" style="justify-content: flex-start; gap: 10px; margin-top: 10px;">
+                    <button id="atlas-mode-cluster" class="kinetic-btn">Cluster View</button>
+                    <button id="atlas-mode-heat" class="kinetic-btn secondary">Heatmap View</button>
+                </div>
                 <div id="map" style="height: 600px; border: 2px solid var(--primary); border-radius: 8px; margin-top: 20px;"></div>
                 <div id="atlas-stats" class="log-msg" style="margin-top: 10px;">Initializing GPS satellite link...</div>
             </section>

@@ -12,6 +12,7 @@ A high-performance, local-first AI photo management system with Deep Retrieval, 
 ## ⚡ V3.4 Breakthrough Features
 - **Vision LLM Deductive Geocoding (NEW)**: Memory-safe local LLM inference (downsampled to 1280px) to deduce locations from signs, language, and architecture for photos lacking GPS.
 - **Duplicate Detection & Pruning (NEW)**: Perceptual hashing (`phash`) groups near-duplicates, allowing you to bulk-prune redundant files directly from the UI.
+- **Local Geo-Heatmap (NEW)**: Offline density heatmap visualization of your entire photo library, seamlessly togglable on the Geocoded Atlas.
 - **Visual Landmark Precision**: CLIP-based recognition identifies specific landmarks (e.g., Colosseum, Taj Mahal) to upgrade generic country GPS into high-precision map coordinates.
 - **Geocoded Atlas**: Leaflet marker clustering handles large-scale libraries, shattering density bubbles into individual inspectable assets.
 - **Temporal Propagation**: Automatically propagates GPS data to non-GPS photos in the same session.
