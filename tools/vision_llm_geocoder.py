@@ -45,14 +45,16 @@ def deduce_location_from_images(image_paths, country_hint="Unknown"):
         f"You are a forensic geographic analyst. I am providing you with {len(images_b64)} photos taken in or near {country_hint}. "
         "Analyze these photos carefully for any text (street signs, storefronts, menus), architectural styles, "
         "license plates, or distinct environmental features. "
-        "Deduce the specific city, town, or region where these photos were taken. "
+        "Deduce the specific location and provide estimated numerical coordinates. "
         "You must respond ONLY with a valid JSON object in the exact following format:\n"
         "{\n"
         '  "city_or_region": "Name of the deduced city/region",\n'
+        '  "latitude": 12.34567,\n'
+        '  "longitude": 76.54321,\n'
         '  "confidence": "high" or "low",\n'
         '  "reasoning": "Brief explanation of what you saw that led to this conclusion"\n'
         "}\n"
-        "If you cannot deduce a specific location, set confidence to 'low'."
+        "Use exact numbers (float) for latitude and longitude. If unsure, provide your best plausible center estimate based on your visual cues."
     )
     
     payload = {

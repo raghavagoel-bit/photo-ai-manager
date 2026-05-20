@@ -312,6 +312,36 @@ async def bulk_tag_faces(face_ids: str = Form(...), person_name: str = Form(...)
         
     return {"status": "success", "person_id": person_id, "tagged_count": len(ids_to_tag)}
 
+from timeline_service import get_timeline_service
+
+@app.get("/api/timeline/heatmap")
+async def get_timeline_heatmap():
+    """Aggregates Google Timeline data into optimized density points for high-speed heatmap rendering."""
+    svc = get_timeline_service()
+    if not svc or not svc.is_loaded:
+        svc.load()
+    
+    if not svc.points:
+        return []
+        
+    # Fast aggregation: Group by grid points (approx 100m x 100m) to limit payload
+    density_map = {}
+    for _, lat, lon in svc.points:
+        # Round to 3 decimals creates high-fidelity density blocks without overloading client
+        key = (round(lat, 3), round(lon, 3))
+        density_map[key] = density_map.get(key, 0) + 1
+        
+    # Format for Leaflet.heat [lat, lon, intensity]
+    # Normalize intensity slightly so ultra-frequented spots don't mask others totally
+    results = []
+    max_val = max(density_map.values()) if density_map else 1
+    
+    for (lat, lon), count in density_map.items():
+        normalized_intensity = min(1.0, count / (max_val * 0.1)) # Cap scale early for clarity
+        results.append([lat, lon, round(normalized_intensity, 3)])
+        
+    return results
+
 # --- V3 INTELLIGENCE ENDPOINTS ---
 
 @app.get("/api/atlas")

@@ -135,6 +135,13 @@ The intelligence engines run separately to ensure the API never blocks.
 - **Phase 6 (CLIP)**: Matches visual landmarks.
 - **Phase 7 (Ollama)**: Uses local Vision LLMs to contextually deduce locations from text and architecture.
 
+### 4. `timeline_service.py` & Timeline Tools (NEW)
+Provides advanced temporal propagation of GPS coordinates.
+- **timeline_service.py**: Deductive temporal timeline engine.
+- **tools/geolocate_photos.py**: Batch geolocates using timeline heuristics.
+- **tools/verify_timeline_2009.py**: Diagnostic tool for timeline verification.
+- **tools/inspect_bad_locations.py**: Data quality tool to audit bad GPS points.
+
 ### 3. `templates/` & `static/`
 A complete UI redesign following the **Stealth Pro** design system:
 - **Aesthetic**: Abyss Black (#000000) with Racing Red and Electric Yellow accents.

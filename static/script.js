@@ -13,7 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
         atlasData: [],
         atlasMode: 'cluster',
         clusterLayer: null,
-        heatLayer: null
+        heatLayer: null,
+        timelineHeatLayer: null,
+        timelineData: null
     };
 
     // Listen for Global Tab Changes
@@ -447,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderAtlasMode = () => {
         if (state.clusterLayer) state.map.removeLayer(state.clusterLayer);
         if (state.heatLayer) state.map.removeLayer(state.heatLayer);
+        if (state.timelineHeatLayer) state.map.removeLayer(state.timelineHeatLayer);
 
         if (state.atlasMode === 'cluster') {
             if (!state.clusterLayer) {
@@ -474,22 +477,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 10 });
             }
             state.map.addLayer(state.heatLayer);
+        } else if (state.atlasMode === 'timeline') {
+             // Lazy load timeline data from API
+             if (!state.timelineData) {
+                 document.getElementById('atlas-stats').textContent = "Fetching mass timeline historical coordinates...";
+                 fetch('/api/timeline/heatmap')
+                    .then(res => res.json())
+                    .then(data => {
+                         state.timelineData = data;
+                         document.getElementById('atlas-stats').textContent = `Timeline active. Displaying ${data.length} dense activity sectors.`;
+                         state.timelineHeatLayer = L.heatLayer(data, { 
+                            radius: 25, 
+                            blur: 15, 
+                            maxZoom: 10 
+                         });
+                         state.map.addLayer(state.timelineHeatLayer);
+
+                         // Dynamic viewport centering based on density weight
+                         if (data.length > 0) {
+                             const bounds = L.latLngBounds(data.map(d => [d[0], d[1]]));
+                             state.map.fitBounds(bounds);
+                         }
+                    });
+             } else {
+                 state.map.addLayer(state.timelineHeatLayer);
+                 // Refocus existing data if cached
+                 if (state.timelineData && state.timelineData.length > 0) {
+                     const bounds = L.latLngBounds(state.timelineData.map(d => [d[0], d[1]]));
+                     state.map.fitBounds(bounds);
+                 }
+             }
         }
     };
 
-    document.getElementById('atlas-mode-cluster')?.addEventListener('click', (e) => {
-        state.atlasMode = 'cluster';
-        e.target.classList.remove('secondary');
-        document.getElementById('atlas-mode-heat').classList.add('secondary');
-        renderAtlasMode();
-    });
+    window.setAtlasMode = (mode) => {
+        console.log("Triggering Atlas Mode Swap:", mode);
+        state.atlasMode = mode;
+        
+        // Explicitly select button nodes via manual refresh query
+        const btnCluster = document.getElementById('atlas-mode-cluster');
+        const btnHeat = document.getElementById('atlas-mode-heat');
+        const btnTimeline = document.getElementById('atlas-mode-timeline');
 
-    document.getElementById('atlas-mode-heat')?.addEventListener('click', (e) => {
-        state.atlasMode = 'heat';
-        e.target.classList.remove('secondary');
-        document.getElementById('atlas-mode-cluster').classList.add('secondary');
+        // Cleanup and re-render
+        if (btnCluster) btnCluster.classList.add('secondary');
+        if (btnHeat) btnHeat.classList.add('secondary');
+        if (btnTimeline) btnTimeline.classList.add('secondary');
+
+        if (mode === 'cluster' && btnCluster) btnCluster.classList.remove('secondary');
+        if (mode === 'heat' && btnHeat) btnHeat.classList.remove('secondary');
+        if (mode === 'timeline' && btnTimeline) btnTimeline.classList.remove('secondary');
+
         renderAtlasMode();
-    });
+    };
 
     const loadAtlasData = async () => {
         try {

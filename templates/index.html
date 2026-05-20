@@ -184,8 +184,9 @@
                 <h1>Geospatial Operations</h1>
                 <p class="subtitle">Global photo distribution and trip history</p>
                 <div class="kinetic-form" style="justify-content: flex-start; gap: 10px; margin-top: 10px;">
-                    <button id="atlas-mode-cluster" class="kinetic-btn">Cluster View</button>
-                    <button id="atlas-mode-heat" class="kinetic-btn secondary">Heatmap View</button>
+                    <button id="atlas-mode-cluster" class="kinetic-btn" onclick="setAtlasMode('cluster')">Cluster View</button>
+                    <button id="atlas-mode-heat" class="kinetic-btn secondary" onclick="setAtlasMode('heat')">Heatmap View</button>
+                    <button id="atlas-mode-timeline" class="kinetic-btn secondary" onclick="setAtlasMode('timeline')">Timeline Heatmap</button>
                 </div>
                 <div id="map" style="height: 600px; border: 2px solid var(--primary); border-radius: 8px; margin-top: 20px;"></div>
                 <div id="atlas-stats" class="log-msg" style="margin-top: 10px;">Initializing GPS satellite link...</div>
@@ -244,6 +245,6 @@
         </div>
     </div>
 
-    <script src="/static/script.js"></script>
+    <script src="/static/script.js?v=4"></script>
 </body>
 </html>
