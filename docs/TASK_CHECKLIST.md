@@ -73,7 +73,7 @@ Complete record of all tasks completed across all sessions.
 
 - [x] Diagnosed silent failure: `facenet_weights.h5` was corrupt (interrupted download).
 - [x] Identified root cause: DeepFace raises `ValueError` for weight load failure, **same as** "no face found" — both were silently caught.
-- [x] Deleted corrupt `facenet_weights.h5` from `C:\Users\admin\.deepface\weights\`.
+- [x] Deleted corrupt `facenet_weights.h5` from `~\.deepface\weights\`.
 - [x] Manually re-downloaded `facenet_weights.h5` (88 MB) via `Invoke-WebRequest`.
 - [x] `retinaface.h5` (119 MB) auto-downloaded on next run.
 - [x] Made `ValueError` handler verbose — prints exact DeepFace message.

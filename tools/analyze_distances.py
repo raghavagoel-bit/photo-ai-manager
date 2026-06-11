@@ -3,7 +3,7 @@ import os
 import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
 
-DB_PATH = os.path.join('photo_manager', 'data', 'index.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'index.db')
 
 def analyze_distances():
     if not os.path.exists(DB_PATH):

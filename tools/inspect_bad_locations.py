@@ -10,8 +10,8 @@ sys.path.append(parent_dir)
 try:
     from database import get_connection
 except ImportError:
-    # Direct fallback if needed
-    db_path = r"c:\Raghava\Antigravity\photo_manager\data\index.db"
+    # Direct fallback when run outside the project root
+    db_path = os.path.join(parent_dir, 'data', 'index.db')
     def get_connection():
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row

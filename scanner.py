@@ -49,8 +49,6 @@ def get_exif_data(image_path):
     except Exception:
         return os.path.basename(os.path.dirname(image_path)), "", "", "", "", "", "", None, None
 
-# is_scanned is deprecated in favor of get_photo_v3_status
-
 def scan_directory(root_dir, status_dict=None):
     os.makedirs(THUMBNAIL_DIR, exist_ok=True)
     if status_dict is not None:
@@ -89,22 +87,30 @@ def scan_directory(root_dir, status_dict=None):
                         phash = str(imagehash.phash(img_pil))
                         photo_thumb = generate_thumbnails(img_pil, THUMBNAIL_DIR)
                 except Exception as e:
-                    print(f"Hashing/Thumb error on {file}: {e}")
-                    phash = ""
-                    photo_thumb = ""
+                    print(f"ERROR: Cannot hash/thumbnail {file}, skipping: {e}")
+                    scanned_count += 1
+                    continue
 
+                from scene_utils import detect_scene
                 if v3_status:
                     # Maintenance Hydration (Backfilling V3 columns)
                     update_photo_v3_data(v3_status['id'], lat, lon, phash, photo_thumb)
+                    # Also run face+scene processing if this photo has no faces yet
+                    if v3_status.get('face_count', 0) == 0:
+                        faces = process_image(full_path, THUMBNAIL_DIR)
+                        ai_tags = detect_scene(full_path)
+                        if faces:
+                            for face in faces:
+                                insert_face(v3_status['id'], face['box'], face['encoding'], face['thumbnail'])
+                                face_count += 1
                 else:
                     # Fresh Scan
                     faces = process_image(full_path, THUMBNAIL_DIR)
-                    from scene_utils import detect_scene
-                    ai_tags = detect_scene(full_path) 
-                    
-                    photo_id = insert_photo(full_path, loc_tags, date_taken, ai_tags, make, model, iso, aperture, focal, 
+                    ai_tags = detect_scene(full_path)
+
+                    photo_id = insert_photo(full_path, loc_tags, date_taken, ai_tags, make, model, iso, aperture, focal,
                                             latitude=lat, longitude=lon, phash=phash, thumbnail_path=photo_thumb)
-                    
+
                     if faces:
                         for face in faces:
                             insert_face(photo_id, face['box'], face['encoding'], face['thumbnail'])

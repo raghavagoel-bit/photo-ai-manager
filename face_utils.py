@@ -97,7 +97,8 @@ def process_image(image_path, thumbnail_dir):
         
     try:
         img = Image.open(image_path).convert('RGB')
-    except Exception:
+    except Exception as e:
+        print(f"AI: Failed to open image for face cropping {os.path.basename(image_path)}: {e}")
         return []
 
     faces = []
@@ -119,12 +120,11 @@ def process_image(image_path, thumbnail_dir):
         right = min(img.width, int((x + w) / scale))
         bottom = min(img.height, int((y + h) / scale))
 
-        # Convert float list to numpy array and perform L2 normalization
-        # This ensuring Euclidean distance 0.7-1.0 matches the Facenet standard
+        # Convert float list to numpy array and perform L2 normalization.
+        # Always normalize; the +1e-8 guard prevents division by zero on degenerate embeddings.
         encoding = np.array(face["embedding"], dtype=np.float64)
         norm = np.linalg.norm(encoding)
-        if norm > 1e-6:
-            encoding = encoding / norm
+        encoding = encoding / (norm + 1e-8)
 
         # Create 150x150 thumbnail locally so we never load the 4K image in the web browser
         try:

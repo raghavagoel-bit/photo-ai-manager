@@ -81,6 +81,15 @@ def init_db():
             print(f"[DATABASE] Migrating: Adding missing column {col} to photos table.")
             c.execute(f'ALTER TABLE photos ADD COLUMN {col} {col_type}')
     
+    # Indexes on frequently queried columns — critical for atlas, search, and duplicate detection
+    c.execute('CREATE INDEX IF NOT EXISTS idx_photos_latitude ON photos(latitude)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_photos_longitude ON photos(longitude)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_photos_date_taken ON photos(date_taken)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_photos_phash ON photos(phash)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_photos_ai_tags ON photos(ai_tags)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_faces_photo_id ON faces(photo_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_faces_person_id ON faces(person_id)')
+
     conn.commit()
     conn.close()
 
@@ -89,14 +98,18 @@ def get_photo_v3_status(file_path):
     c = conn.cursor()
     c.execute('SELECT id, phash, thumbnail_path FROM photos WHERE file_path = ?', (file_path,))
     row = c.fetchone()
-    conn.close()
     if not row:
+        conn.close()
         return None
+    c.execute('SELECT COUNT(*) as cnt FROM faces WHERE photo_id = ?', (row['id'],))
+    face_count = c.fetchone()['cnt']
+    conn.close()
     return {
         "id": row['id'],
         "is_complete": bool(row['phash'] and row['thumbnail_path']),
         "phash": row['phash'],
-        "thumbnail_path": row['thumbnail_path']
+        "thumbnail_path": row['thumbnail_path'],
+        "face_count": face_count
     }
 
 def update_photo_v3_data(photo_id, latitude, longitude, phash, thumbnail_path):

@@ -2,7 +2,7 @@ import sqlite3
 import os
 import numpy as np
 
-DB_PATH = os.path.join('photo_manager', 'data', 'index.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'index.db')
 
 def check_db():
     if not os.path.exists(DB_PATH):

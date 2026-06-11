@@ -113,7 +113,7 @@ Implemented unsupervised **DBSCAN** clustering on the 128-d face embedding vecto
 After deleting `index.db` to reset, a fresh scan of 150+ images found **zero faces**. No errors visible in the UI or logs.
 
 ### Root Cause
-`C:\Users\admin\.deepface\weights\facenet_weights.h5` was **corrupt** — partially downloaded during a previous interrupted session (88 MB file, incomplete).
+`~\.deepface\weights\facenet_weights.h5` was **corrupt** — partially downloaded during a previous interrupted session (88 MB file, incomplete).
 
 DeepFace raises `ValueError` for **both**:
 - "no face found in this image" ← intended to catch
@@ -201,7 +201,7 @@ We ran a dedicated comparison script (`compare_clustering.py`) on 245 L2-normali
 | **Agglo `complete`** | **0.85** | **68** | ✅ **Passed** (tightest clusters, zero chaining) |
 
 ### Fix Applied
-#### [MODIFY] [main_backend.py](file:///c:/Raghava/Antigravity/photo_manager/main_backend.py)
+#### [MODIFY] [main_backend.py](main_backend.py)
 - Replaced DBSCAN with `AgglomerativeClustering`.
 - Parameters: `distance_threshold=0.85`, `linkage='complete'`.
 

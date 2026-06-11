@@ -30,7 +30,7 @@ A high-performance, local-first AI photo management system with Deep Retrieval, 
     Access the tactical dashboard at `http://localhost:8000`.
 
 ## 🛠️ Operational Support
-All major V1-V2 bugs have been resolved. See [docs/bug_fixes.md](file:///c:/Raghava/Antigravity/photo_manager/docs/bug_fixes.md) for the full resolution log.
+All major V1-V2 bugs have been resolved. See [docs/bug_fixes.md](docs/bug_fixes.md) for the full resolution log.
 
 ---
 

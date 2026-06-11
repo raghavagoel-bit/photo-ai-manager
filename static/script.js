@@ -44,7 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const addLog = (msg, isFile = false) => {
         const entry = document.createElement('div');
         entry.className = 'log-entry';
-        const time = new Error().stack ? new Date().toLocaleTimeString() : ''; // Get current time
         entry.innerHTML = `
             <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
             <span class="log-msg">${msg}</span>
@@ -102,7 +101,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    setInterval(updateTelemetry, 2000);
+    let _telemetryInterval = setInterval(updateTelemetry, 2000);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            clearInterval(_telemetryInterval);
+        } else {
+            updateTelemetry();
+            _telemetryInterval = setInterval(updateTelemetry, 2000);
+        }
+    });
 
     // --- Scanner Initialization ---
     const startScanBtn = document.getElementById('start-scan-btn');
@@ -185,14 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = batchNameInput.value.trim();
         if (!name) return alert("Identification name required.");
         
-        // Collect all IDs from selected clusters
+        // Collect all face IDs from data attributes of selected cluster cards
         let allIds = [];
-        state.selectedFaces.forEach(masterId => {
-            const card = [...facesGrid.children].find(c => c.onclick && c.onclick.toString().includes(masterId)); 
-            // Better to use data attributes
-        });
-        
-        // Refactored: get all IDs from data attributes of selected cards
         const selectedCards = document.querySelectorAll('.id-card.selected');
         selectedCards.forEach(card => {
             allIds.push(...card.dataset.ids.split(','));
@@ -353,8 +354,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(url);
             const data = await res.json();
-            
-            if (!append) resultsGrid.innerHTML = '';
+
+            if (!append) resultsGrid.innerHTML = ''; // Clear skeletons before rendering results
 
             if (!data.results || data.results.length === 0) {
                 if (!append) resultsGrid.innerHTML = '<p class="log-msg">No tactical matches found.</p>';

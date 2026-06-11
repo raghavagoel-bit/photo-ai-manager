@@ -5,7 +5,7 @@ from datetime import datetime
 import bisect
 import dateutil.parser
 
-TIMELINE_FILE = r"C:\Users\admin\Downloads\Timeline.json"
+TIMELINE_FILE = os.environ.get("TIMELINE_FILE", os.path.expanduser(r"~/Downloads/Timeline.json"))
 
 class TimelineService:
     def __init__(self, filepath=TIMELINE_FILE):
@@ -41,7 +41,7 @@ class TimelineService:
                         lat, lon = self._parse_latlng_string(p["point"])
                         if lat is not None and lon is not None:
                             temp_points.append((ts, lat, lon))
-                    except:
+                    except (KeyError, ValueError, TypeError):
                         continue
 
             # Path 2: visits (Static location duration)
@@ -59,7 +59,7 @@ class TimelineService:
                         lat, lon = self._parse_latlng_string(loc["latLng"])
                         if lat is not None and lon is not None:
                             temp_points.append((ts, lat, lon))
-                except:
+                except (KeyError, ValueError, TypeError):
                     continue
 
         # Sort for binary search
@@ -76,7 +76,7 @@ class TimelineService:
             clean = s.replace('°', '').replace(' ', '')
             parts = clean.split(',')
             return float(parts[0]), float(parts[1])
-        except:
+        except (IndexError, ValueError):
             return None, None
 
     def get_closest_location(self, target_iso_or_dt, max_delta_seconds=3600):
