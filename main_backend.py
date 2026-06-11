@@ -355,16 +355,10 @@ async def get_timeline_heatmap():
         key = (round(lat, 3), round(lon, 3))
         density_map[key] = density_map.get(key, 0) + 1
         
-    # Format for Leaflet.heat [lat, lon, intensity]
-    # Normalize intensity slightly so ultra-frequented spots don't mask others totally
-    results = []
-    max_val = max(density_map.values()) if density_map else 1
-    
-    for (lat, lon), count in density_map.items():
-        normalized_intensity = min(1.0, count / (max_val * 0.1)) # Cap scale early for clarity
-        results.append([lat, lon, round(normalized_intensity, 3)])
-        
-    return results
+    # Return raw visit counts. The client normalises per-viewport so every
+    # region shows its own relative hotspots instead of being washed out by
+    # the globally most-visited location (e.g. home city).
+    return [[lat, lon, count] for (lat, lon), count in density_map.items()]
 
 # --- V3 INTELLIGENCE ENDPOINTS ---
 

@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clusterLayer: null,
         heatLayer: null,
         timelineHeatLayer: null,
-        timelineData: null
+        timelineRawData: null
     };
 
     // Listen for Global Tab Changes
@@ -444,7 +444,43 @@ document.addEventListener('DOMContentLoaded', () => {
             }).addTo(state.map);
 
             await loadAtlasData();
+
+            // Re-normalise timeline heat to viewport on every pan/zoom end
+            let _heatDebounce = null;
+            state.map.on('moveend zoomend', () => {
+                if (state.atlasMode !== 'timeline' || !state.timelineRawData) return;
+                clearTimeout(_heatDebounce);
+                _heatDebounce = setTimeout(rebuildTimelineHeat, 400);
+            });
         }, 300); // Small delay to ensure container is visible
+    };
+
+    // Rebuilds the timeline heat layer normalised to the current map viewport.
+    // Called on first load, on mode switch back to timeline, and on pan/zoom end.
+    const rebuildTimelineHeat = () => {
+        if (!state.map || !state.timelineRawData) return;
+
+        // Find the maximum visit count among points currently visible in the viewport
+        const bounds = state.map.getBounds();
+        let viewportMax = 1;
+        for (const p of state.timelineRawData) {
+            if (bounds.contains([p[0], p[1]]) && p[2] > viewportMax) viewportMax = p[2];
+        }
+
+        // Normalise every point relative to the viewport max (0–1 for visible points;
+        // out-of-viewport high-count points may exceed 1 and render at full heat,
+        // but they're not visible so it doesn't matter).
+        const normalized = state.timelineRawData.map(p => [p[0], p[1], p[2] / viewportMax]);
+
+        if (!state.timelineHeatLayer) {
+            state.timelineHeatLayer = L.heatLayer(normalized, { radius: 25, blur: 15, maxZoom: 10, max: 1.0 });
+        } else {
+            state.timelineHeatLayer.setLatLngs(normalized);
+        }
+
+        if (!state.map.hasLayer(state.timelineHeatLayer)) {
+            state.map.addLayer(state.timelineHeatLayer);
+        }
     };
 
     const renderAtlasMode = () => {
@@ -479,35 +515,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             state.map.addLayer(state.heatLayer);
         } else if (state.atlasMode === 'timeline') {
-             // Lazy load timeline data from API
-             if (!state.timelineData) {
-                 document.getElementById('atlas-stats').textContent = "Fetching mass timeline historical coordinates...";
-                 fetch('/api/timeline/heatmap')
+            if (!state.timelineRawData) {
+                document.getElementById('atlas-stats').textContent = "Fetching timeline data...";
+                fetch('/api/timeline/heatmap')
                     .then(res => res.json())
                     .then(data => {
-                         state.timelineData = data;
-                         document.getElementById('atlas-stats').textContent = `Timeline active. Displaying ${data.length} dense activity sectors.`;
-                         state.timelineHeatLayer = L.heatLayer(data, { 
-                            radius: 25, 
-                            blur: 15, 
-                            maxZoom: 10 
-                         });
-                         state.map.addLayer(state.timelineHeatLayer);
-
-                         // Dynamic viewport centering based on density weight
-                         if (data.length > 0) {
-                             const bounds = L.latLngBounds(data.map(d => [d[0], d[1]]));
-                             state.map.fitBounds(bounds);
-                         }
+                        state.timelineRawData = data;
+                        document.getElementById('atlas-stats').textContent = `Timeline active. ${data.length} density nodes. Heatmap normalises to current viewport — pan to any region to see its hotspots.`;
+                        if (data.length > 0) {
+                            const allBounds = L.latLngBounds(data.map(d => [d[0], d[1]]));
+                            state.map.fitBounds(allBounds, { animate: false });
+                        }
+                        rebuildTimelineHeat();
                     });
-             } else {
-                 state.map.addLayer(state.timelineHeatLayer);
-                 // Refocus existing data if cached
-                 if (state.timelineData && state.timelineData.length > 0) {
-                     const bounds = L.latLngBounds(state.timelineData.map(d => [d[0], d[1]]));
-                     state.map.fitBounds(bounds);
-                 }
-             }
+            } else {
+                rebuildTimelineHeat();
+            }
         }
     };
 
