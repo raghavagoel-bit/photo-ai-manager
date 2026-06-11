@@ -41,7 +41,7 @@ class TimelineService:
                         lat, lon = self._parse_latlng_string(p["point"])
                         if lat is not None and lon is not None:
                             temp_points.append((ts, lat, lon))
-                    except (KeyError, ValueError, TypeError):
+                    except Exception:
                         continue
 
             # Path 2: visits (Static location duration)
@@ -53,13 +53,13 @@ class TimelineService:
                     ts = dt.timestamp()
                     cand = visit.get("topCandidate", {})
                     loc = cand.get("placeLocation", {})
-                    
+
                     # Some use "latLng" field string, some might use numeric if different format, but based on sample it's a string
                     if "latLng" in loc:
                         lat, lon = self._parse_latlng_string(loc["latLng"])
                         if lat is not None and lon is not None:
                             temp_points.append((ts, lat, lon))
-                except (KeyError, ValueError, TypeError):
+                except Exception:
                     continue
 
         # Sort for binary search
@@ -76,7 +76,7 @@ class TimelineService:
             clean = s.replace('°', '').replace(' ', '')
             parts = clean.split(',')
             return float(parts[0]), float(parts[1])
-        except (IndexError, ValueError):
+        except Exception:
             return None, None
 
     def get_closest_location(self, target_iso_or_dt, max_delta_seconds=3600):
