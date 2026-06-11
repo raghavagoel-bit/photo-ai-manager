@@ -5,7 +5,10 @@ from datetime import datetime
 import bisect
 import dateutil.parser
 
-TIMELINE_FILE = os.environ.get("TIMELINE_FILE", os.path.expanduser(r"~/Downloads/Timeline.json"))
+TIMELINE_FILE = os.environ.get(
+    "TIMELINE_FILE",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "Timeline.json")
+)
 
 class TimelineService:
     def __init__(self, filepath=TIMELINE_FILE):
